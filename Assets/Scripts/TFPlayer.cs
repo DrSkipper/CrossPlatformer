@@ -8,7 +8,7 @@ using System.Xml;
 
 namespace Assets.Scripts
 {
-    class TfallPlayer : MonoBehaviour
+    class TFPlayer : MonoBehaviour
     {
         public void Update()
         {
