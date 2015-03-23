@@ -49,4 +49,32 @@ public class VoBehavior : MonoBehaviour
 			return _spriteRenderer;
 		}
 	}
+
+    private BoxCollider2D _boxCollider2D;
+    public BoxCollider2D boxCollider2D
+    {
+        get
+        {
+            if (!_boxCollider2D)
+                _boxCollider2D = base.GetComponent<BoxCollider2D>() as BoxCollider2D;
+            return _boxCollider2D;
+        }
+    }
+
+    private Vector2 _position2D;
+    public Vector2 position2D
+    {
+        get
+        {
+            Vector3 position = this.transform.position;
+
+            if (_position2D.x != position.x)
+                _position2D.x = position.x;
+
+            if (_position2D.y != position.y)
+                _position2D.y = position.y;
+
+            return _position2D;
+        }
+    }
 }
