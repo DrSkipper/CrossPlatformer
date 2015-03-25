@@ -23,7 +23,9 @@ namespace Assets.Scripts
             }
         }
 
-		public virtual void MoveExactH(int move, Delegate onCollide = null)
+        public delegate void ActorCollisionHandler(GameObject collidedObject);
+
+        public virtual void MoveExactH(int move, ActorCollisionHandler onCollide = null)
         {
 			int unitDir = Math.Sign(move);
 			while (move != 0)
@@ -34,7 +36,7 @@ namespace Assets.Scripts
                 {
                     if (onCollide != null)
                     {
-                        //onCollide(collidedObject);
+                        onCollide(collidedObject);
                         return;
                     }
                     break;
@@ -47,7 +49,7 @@ namespace Assets.Scripts
 			}
         }
 
-        public virtual void MoveExactV(int move, Delegate onCollide = null)
+        public virtual void MoveExactV(int move, ActorCollisionHandler onCollide = null)
         {
             int unitDir = Math.Sign(move);
             while (move != 0)
@@ -58,7 +60,7 @@ namespace Assets.Scripts
                 {
                     if (onCollide != null)
                     {
-                        //onCollide(collidedObject);
+                        onCollide(collidedObject);
                         return;
                     }
                     break;
@@ -70,8 +72,8 @@ namespace Assets.Scripts
                 }
             }
         }
-        
-		public bool MoveH(float moveH, Delegate onCollide = null)
+
+        public bool MoveH(float moveH, ActorCollisionHandler onCollide = null)
         {
             _positionModifier.x += moveH;
             int moveAmount = (int)Math.Round(_positionModifier.x);
@@ -88,7 +90,7 @@ namespace Assets.Scripts
                         _positionModifier.x = 0.0f;
                         if (onCollide != null)
                         {
-                            //onCollide(collidedObject);
+                            onCollide(collidedObject);
                         }
                         return true;
                     }
@@ -99,7 +101,7 @@ namespace Assets.Scripts
             return false;
         }
 
-        public bool MoveV(float moveV, Delegate onCollide = null)
+        public bool MoveV(float moveV, ActorCollisionHandler onCollide = null)
         {
             _positionModifier.y += moveV;
             int moveAmount = (int)Math.Round(_positionModifier.x);
@@ -116,7 +118,7 @@ namespace Assets.Scripts
                         _positionModifier.y = 0.0f;
                         if (onCollide != null)
                         {
-                            //onCollide(collidedObject);
+                            onCollide(collidedObject);
                         }
                         return true;
                     }
@@ -127,7 +129,7 @@ namespace Assets.Scripts
             return false;
         }
 
-        public void Move(Vector2 amount, Delegate onCollideH = null, Delegate onCollideV = null)
+        public void Move(Vector2 amount, ActorCollisionHandler onCollideH = null, ActorCollisionHandler onCollideV = null)
         {
             this.MoveH(amount.x, onCollideH);
             this.MoveV(amount.y, onCollideV);
@@ -145,20 +147,20 @@ namespace Assets.Scripts
             _positionModifier.y -= moveV;
             this.transform.position += new Vector3(0.0f, moveV);
         }
-        
-		public void MoveTo(Vector2 target, Delegate onCollideH = null, Delegate onCollideV = null)
+
+        public void MoveTo(Vector2 target, ActorCollisionHandler onCollideH = null, ActorCollisionHandler onCollideV = null)
         {
             this.MoveH(target.x - this.position2D.x, onCollideH);
             this.MoveV(target.y - this.position2D.y, onCollideV);
         }
 
-        public void MoveTowards(Vector2 target, float maxAmount, Delegate onCollideH = null, Delegate onCollideV = null)
+        public void MoveTowards(Vector2 target, float maxAmount, ActorCollisionHandler onCollideH = null, ActorCollisionHandler onCollideV = null)
         {
             Vector2 movedPoint = Vector2.MoveTowards(this.ActualPosition, target, maxAmount);
-            this.Move(movedPoint - this.ActualPosition, null, null);
+            this.Move(movedPoint - this.ActualPosition, onCollideH, onCollideV);
         }
-        
-		public void MoveTowardsX(float targetX, float maxAmount, Delegate onCollide = null)
+
+        public void MoveTowardsX(float targetX, float maxAmount, ActorCollisionHandler onCollide = null)
         {
             maxAmount = Mathf.Abs(maxAmount);
             float maxAmountDir = targetX > this.ActualPosition.x ? maxAmount : -maxAmount;
@@ -166,15 +168,15 @@ namespace Assets.Scripts
             this.MoveH(movedX - this.ActualPosition.x, onCollide);
         }
 
-        public void MoveTowardsY(float targetY, float maxAmount, Delegate onCollide = null)
+        public void MoveTowardsY(float targetY, float maxAmount, ActorCollisionHandler onCollide = null)
         {
             maxAmount = Mathf.Abs(maxAmount);
             float maxAmountDir = targetY > this.ActualPosition.y ? maxAmount : -maxAmount;
             float movedY = Math.Abs(targetY - this.ActualPosition.y) > maxAmount ? this.ActualPosition.x + maxAmountDir : targetY;
             this.MoveV(movedY - this.ActualPosition.y, onCollide);
         }
-        
-		public void MoveTowardsWrap(Vector2 target, float maxAmount, Delegate onCollide = null)
+
+        public void MoveTowardsWrap(Vector2 target, float maxAmount, ActorCollisionHandler onCollide = null)
         {
             //if (this.ActualPosition.X + (320f - target.X) < Math.Abs(target.X - this.ActualPosition.X))
             //{
