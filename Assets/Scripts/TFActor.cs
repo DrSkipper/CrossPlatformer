@@ -157,15 +157,17 @@ namespace Assets.Scripts
         
 		public void MoveTowardsX(float targetX, float maxAmount, Delegate onCollide = null)
         {
-            maxAmount = targetX > this.ActualPosition.x ? Mathf.Abs(maxAmount) : -Mathf.Abs(maxAmount);
-            float movedX = targetX - this.ActualPosition.x > maxAmount ? this.ActualPosition.x + maxAmount : targetX;
+            maxAmount = Mathf.Abs(maxAmount);
+            float maxAmountDir = targetX > this.ActualPosition.x ? maxAmount : -maxAmount;
+            float movedX = Math.Abs(targetX - this.ActualPosition.x) > maxAmount ? this.ActualPosition.x + maxAmountDir : targetX;
             this.MoveH(movedX - this.ActualPosition.x, onCollide);
         }
 
         public void MoveTowardsY(float targetY, float maxAmount, Delegate onCollide = null)
         {
-            maxAmount = targetY > this.ActualPosition.y ? Mathf.Abs(maxAmount) : -Mathf.Abs(maxAmount);
-            float movedY = targetY - this.ActualPosition.y > maxAmount ? this.ActualPosition.x + maxAmount : targetY;
+            maxAmount = Mathf.Abs(maxAmount);
+            float maxAmountDir = targetY > this.ActualPosition.y ? maxAmount : -maxAmount;
+            float movedY = Math.Abs(targetY - this.ActualPosition.y) > maxAmount ? this.ActualPosition.x + maxAmountDir : targetY;
             this.MoveV(movedY - this.ActualPosition.y, onCollide);
         }
         
