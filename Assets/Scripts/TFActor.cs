@@ -10,6 +10,9 @@ namespace Assets.Scripts
     class TFActor : VoBehavior
     {
         public bool Pushable = true;
+        public LayerMask CollisionMask;
+        public string CollisionTag;
+
         public Vector2 ActualPosition
         {
             get
@@ -25,7 +28,7 @@ namespace Assets.Scripts
 			int unitDir = Math.Sign(move);
 			while (move != 0)
 			{
-                GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0.0f); // use Solid tag? or Platforms layer mask at least probably
+                GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0.0f, CollisionMask, CollisionTag);
 
                 if (collidedObject)
                 {
@@ -49,7 +52,7 @@ namespace Assets.Scripts
             int unitDir = Math.Sign(move);
             while (move != 0)
             {
-                GameObject collidedObject = this.boxCollider2D.CollideFirst(0.0f, unitDir); // use Solid tag? or Platforms layer mask at least probably
+                GameObject collidedObject = this.boxCollider2D.CollideFirst(0.0f, unitDir, CollisionMask, CollisionTag);
 
                 if (collidedObject)
                 {
@@ -78,7 +81,7 @@ namespace Assets.Scripts
                 _positionModifier.x -= moveAmount;
                 while (moveAmount != 0)
                 {
-                    GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0.0f); // use Solid tag? or Platforms layer mask at least probably
+                    GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0.0f, CollisionMask, CollisionTag);
 
                     if (collidedObject)
                     {
@@ -106,7 +109,7 @@ namespace Assets.Scripts
                 _positionModifier.y -= moveAmount;
                 while (moveAmount != 0)
                 {
-                    GameObject collidedObject = this.boxCollider2D.CollideFirst(0.0f, unitDir); // use Solid tag? or Platforms layer mask at least probably
+                    GameObject collidedObject = this.boxCollider2D.CollideFirst(0.0f, unitDir, CollisionMask, CollisionTag);
 
                     if (collidedObject)
                     {
@@ -197,13 +200,31 @@ namespace Assets.Scripts
          */
         private Vector2 _positionModifier;
 
+        //TODO - Might be better to just add CollideAll method that can use the OverlapAreaAll method
+        private GameObject[] _allCollidableObjects
+        {
+            get
+            {
+                GameObject[] gameObjects = this.CollisionTag != null ? GameObject.FindGameObjectsWithTag(this.CollisionTag) : GameObject.FindObjectsOfType<GameObject>();
+                List<GameObject> retVal = new List<GameObject>();
+
+                foreach (GameObject gameObject in gameObjects)
+                {
+                    if ((gameObject.layer & this.CollisionMask) == gameObject.layer)
+                        retVal.Add(gameObject);
+                }
+
+                return retVal.ToArray();
+            }
+        }
+
         // If we're inside an object, move ourselves out to the left
 		private bool SnapToLeftmostCollision(ref GameObject block) // ref Solid block
         {
             bool result = false;
             float right = this.boxCollider2D.bounds.max.x;
             float minX = right;
-            foreach (GameObject current in GameObject.FindGameObjectsWithTag("solid")) //todo - tag
+            foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
@@ -226,7 +247,7 @@ namespace Assets.Scripts
             bool result = false;
             float left = this.boxCollider2D.bounds.min.x;
             float maxX = left;
-            foreach (GameObject current in GameObject.FindGameObjectsWithTag("solid")) //todo - tag
+            foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
@@ -249,7 +270,7 @@ namespace Assets.Scripts
             bool result = false;
             float bottom = this.boxCollider2D.bounds.min.y;
             float maxY = bottom;
-            foreach (GameObject current in GameObject.FindGameObjectsWithTag("solid")) //todo - tag
+            foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
@@ -272,7 +293,7 @@ namespace Assets.Scripts
             bool result = false;
             float top = this.boxCollider2D.bounds.max.y;
             float minY = top;
-            foreach (GameObject current in GameObject.FindGameObjectsWithTag("solid")) //todo - tag
+            foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
