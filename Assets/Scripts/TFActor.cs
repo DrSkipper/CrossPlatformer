@@ -10,8 +10,8 @@ namespace Assets.Scripts
     class TFActor : VoBehavior
     {
         public bool Pushable = true;
-        public LayerMask CollisionMask;
-        public string CollisionTag;
+        public LayerMask CollisionMask = 0;
+        public string CollisionTag = null;
 
         public Vector2 ActualPosition
         {

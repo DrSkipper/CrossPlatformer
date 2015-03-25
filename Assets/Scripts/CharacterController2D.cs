@@ -36,7 +36,7 @@ public class CharacterController2D : MonoBehaviour
 	private Transform _transform;
 	private Vector3 _localScale;
 	private BoxCollider2D _boxCollider;
-	private ControllerParameters2D _overrideParameters;
+	private ControllerParameters2D _overrideParameters = null;
 	private Vector3 _raycastTopLeft;
 	private Vector3 _raycastBottomRight;
 	private Vector3 _raycastBottomLeft;
