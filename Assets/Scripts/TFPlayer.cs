@@ -5,11 +5,37 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using Assets.Scripts.Extensions;
 
 namespace Assets.Scripts
 {
-    class TFPlayer : MonoBehaviour
+    public enum Facing
     {
+        Right = 1,
+        Left = -1
+    }
+
+    class TFPlayer : VoBehavior
+    {
+        public const uint MAX_AIM_SNAP_DIRECTIONS = 32;
+        public const uint DEFAULT_AIM_SNAP_DIRECTIONS = 8;
+
+        public string SlipperyTag = null;
+
+        //NOTE - Set to 0 for free-aim
+        [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
+        public uint AimSnapDirections = DEFAULT_AIM_SNAP_DIRECTIONS;
+
+        public TFActor actor
+        {
+            get
+            {
+                if (!_actor)
+                    _actor = this.GetComponent<TFActor>() as TFActor;
+                return _actor;
+            }
+        }
+
         public void Update()
         {
             // - Update spam shot counter
@@ -26,10 +52,30 @@ namespace Assets.Scripts
 
             // - Send collision ray(s) from our position in UnitY direction (down) to detect OnGround
             // - If so, store hit entity as lastPlatform. Check if this platform is slippery or hot coals and store bools for those as well.
+            GameObject groundObject = this.boxCollider2D.CollideFirst(0.0f, -Vector2.up.y, this.actor.CollisionMask, this.actor.CollisionTag);
+            _onGround = groundObject != null;
+
+            if (_onGround)
+            {
+                _slipperyControl = (this.SlipperyTag != null &&
+                    (this.SlipperyTag == this.actor.CollisionTag ||
+                    this.boxCollider2D.CollideFirst(0.0f, -Vector2.up.y, this.actor.CollisionMask, this.SlipperyTag))) ? 0.0f : 1.0f;
+
+                _lastPlatform = groundObject;
+            }
+            else
+            {
+                _slipperyControl = Mathf.Min(_slipperyControl + 0.1f, 1.0f);
+            }
+
+            // - Check if on hot coals
 
             // - Get input state for this player
-
             // - Get aimDirection (circular) from joystick axis
+            _moveAxis = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
+            _aimAxis = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
+            float? aimDirection = getAimDirection(_aimAxis);
+            _aimDirection = aimDirection.HasValue ? aimDirection.GetValueOrDefault() : (_facing == Facing.Right ? 0.0f : Mathf.PI);
 
             // - If we're frozen, just set Facing to appropriate direction and exit Update function
 
@@ -64,6 +110,54 @@ namespace Assets.Scripts
             // - Update Animations
             
             // - Update hair/other animated accessory 
+        }
+
+        /**
+         * Private
+         */
+        private TFActor _actor;
+        private bool _onGround;
+        private float _slipperyControl;
+        private GameObject _lastPlatform;
+        private Vector2 _moveAxis;
+        private Vector2 _aimAxis;
+        private float _aimDirection;
+        private Facing _facing;
+
+        private float? getAimDirection(Vector2 axis)
+        {
+            if (axis == Vector2.zero)
+                return null;
+
+            if (this.AimSnapDirections > 0)
+            {
+                float increment = (Mathf.PI * 2.0f) / (float)(this.AimSnapDirections);
+                return new float?(Mathf.Round((axis.Angle() / increment)) * increment);
+            }
+            return new float?(axis.Angle());
+        }
+
+        /**
+         * Editor Assistance
+         */
+        [ExecuteInEditMode]
+        void OnValidate()
+        {
+            // If AimSnapDirections isn't a power of 2, clamp to the nearest power of 2
+            if (this.AimSnapDirections > 2)
+            {
+                uint pow2 = 2;
+                while (pow2 < this.AimSnapDirections)
+                {
+                    pow2 *= 2;
+                }
+
+                if (pow2 > this.AimSnapDirections)
+                {
+                    uint prevPow2 = pow2 / 2;
+                    this.AimSnapDirections = (pow2 < MAX_AIM_SNAP_DIRECTIONS && pow2 - this.AimSnapDirections < this.AimSnapDirections - prevPow2) ? pow2 : prevPow2;
+                }
+            }
         }
     }
 }
