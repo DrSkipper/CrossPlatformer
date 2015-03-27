@@ -22,6 +22,23 @@ public class Timer
 		this.paused = false;
 	}
 
+    public void reset()
+    {
+        _timeRemaining = _durationSeconds;
+        this.completed = false;
+    }
+
+    public void complete()
+    {
+        if (this.callback != null)
+            this.callback();
+
+        if (this.loops)
+            _timeRemaining = _durationSeconds;
+        else
+            this.completed = true;
+    }
+
 	public void update()
 	{
 		if (!this.paused && !this.completed)
@@ -29,15 +46,7 @@ public class Timer
 			_timeRemaining -= Time.deltaTime;
 
 			if (_timeRemaining <= 0.0f)
-			{
-				if (this.callback != null)
-					this.callback();
-
-				if (this.loops)
-					_timeRemaining = _durationSeconds;
-				else if (!this.completed)
-					this.invalidate();
-			}
+                this.complete();
 		}
 	}
 

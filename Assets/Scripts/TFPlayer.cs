@@ -21,6 +21,9 @@ namespace Assets.Scripts
         public const uint DEFAULT_AIM_SNAP_DIRECTIONS = 8;
 
         public string SlipperyTag = null;
+        public float JumpBufferTime = 6.0f;
+        public float JumpGraceTime = 6.0f;
+        public float WallStickStart = 0.5f;
 
         //NOTE - Set to 0 for free-aim
         [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
@@ -34,6 +37,15 @@ namespace Assets.Scripts
                     _actor = this.GetComponent<TFActor>() as TFActor;
                 return _actor;
             }
+        }
+
+        public void Awake()
+        {
+            _jumpBufferTimer = new Timer(JumpBufferTime);
+            _jumpBufferTimer.complete();
+
+            _jumpGraceTimer = new Timer(JumpGraceTime);
+            _jumpGraceTimer.complete();
         }
 
         public void Update()
@@ -80,18 +92,26 @@ namespace Assets.Scripts
             // - If we're frozen, just set Facing to appropriate direction and exit Update function
 
             // - Update jumpBufferCounter, and if input indicates Jump is pressed, set it to JUMP_BUFFER (6)
+            _jumpBufferTimer.update();
+            if (Input.GetButtonDown("Jump"))
+            {
+                _jumpBufferTimer.reset();
+                _jumpBufferTimer.start();
+            }
 
             // - If we're aiming, play aiming sound (?) and update lastAimDirection to AimDirection
 
             // - Check if we're set to auto-move, and if so, set our input axis x value to our autoMove value
 
             // - If we're on ground, do some stuff:
-            /*
-                this.jumpGraceCounter.SetMax(JUMP_GRACE); // JUMP_GRACE = 6
-                this.wallStickMax = WALLSTICK_START;
-                this.flapGravity = 1f;
-                this.graceLedgeDir = 0;
-             */
+            if (_onGround)
+            {
+                _jumpGraceTimer.reset();
+                _jumpGraceTimer.start();
+                _wallStickMax = this.WallStickStart;
+                //this.flapGravity = 1f;
+                _graceLedgeDir = 0;
+            }
 
             // - Otherwise, update our jump grace counter (I believe this is for stored jumps)
 
@@ -100,6 +120,7 @@ namespace Assets.Scripts
             // - Set gliding to false
 
             //base.Update(); - this calls updates on the player components, including PlayerState, which results in one of those corresponding methods being called
+    //TODO -  UPDATE STATE MACHINE
 
             // - Check if we should pick up an arrow
 
@@ -122,7 +143,11 @@ namespace Assets.Scripts
         private Vector2 _moveAxis;
         private Vector2 _aimAxis;
         private float _aimDirection;
-        private Facing _facing;
+        private Facing _facing = Facing.Right;
+        private Timer _jumpBufferTimer;
+        private Timer _jumpGraceTimer;
+        private float _wallStickMax;
+        private int _graceLedgeDir;
 
         private float? getAimDirection(Vector2 axis)
         {
