@@ -20,6 +20,13 @@ namespace Assets.Scripts
         public const uint MAX_AIM_SNAP_DIRECTIONS = 32;
         public const uint DEFAULT_AIM_SNAP_DIRECTIONS = 8;
 
+        public const string PLAYER_NORMAL_STATE = "normal";
+        public const string PLAYER_LEDGE_GRAB_STATE = "ledgegrab";
+        public const string PLAYER_DUCKING_STATE = "ducking";
+        public const string PLAYER_DODGING_STATE = "dodging";
+        public const string PLAYER_DYING_STATE = "dying";
+        public const string PLAYER_FROZEN_STATE = "frozen";
+
         public string SlipperyTag = null;
         public float JumpBufferTime = 6.0f;
         public float JumpGraceTime = 6.0f;
