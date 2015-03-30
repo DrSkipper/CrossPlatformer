@@ -5,9 +5,9 @@ using System.Text;
 
 namespace Assets.Scripts
 {
+    public delegate string StateUpdateHandler();
     public delegate void StateEnteredCallback();
     public delegate void StateExitedCallback();
-    public delegate string StateUpdateHandler();
 
     class FSMStateMachine
     {
@@ -42,9 +42,9 @@ namespace Assets.Scripts
             _states = new Dictionary<string, FSMState>();
         }
 
-        public void AddState(string state, StateEnteredCallback enteredCallback = null, StateExitedCallback exitedCallback = null, StateUpdateHandler updateHandler = null)
+        public void AddState(string state, StateUpdateHandler updateHandler = null, StateEnteredCallback enteredCallback = null, StateExitedCallback exitedCallback = null)
         {
-            _states[state] = new FSMState(state, enteredCallback, exitedCallback, updateHandler);
+            _states[state] = new FSMState(state, updateHandler, enteredCallback, exitedCallback);
         }
 
         public void BeginWithInitialState(string initialState)

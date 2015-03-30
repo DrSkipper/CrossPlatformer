@@ -20,12 +20,12 @@ namespace Assets.Scripts
         public const uint MAX_AIM_SNAP_DIRECTIONS = 32;
         public const uint DEFAULT_AIM_SNAP_DIRECTIONS = 8;
 
-        public const string PLAYER_NORMAL_STATE = "normal";
-        public const string PLAYER_LEDGE_GRAB_STATE = "ledgegrab";
-        public const string PLAYER_DUCKING_STATE = "ducking";
-        public const string PLAYER_DODGING_STATE = "dodging";
-        public const string PLAYER_DYING_STATE = "dying";
-        public const string PLAYER_FROZEN_STATE = "frozen";
+        public const string PLAYER_STATE_NORMAL = "normal";
+        public const string PLAYER_STATE_DUCKING = "ducking";
+        public const string PLAYER_STATE_DODGING = "dodging";
+        public const string PLAYER_STATE_LEDGE_GRAB = "ledgegrab";
+        public const string PLAYER_STATE_DYING = "dying";
+        public const string PLAYER_STATE_FROZEN = "frozen";
 
         public string SlipperyTag = null;
         public float JumpBufferTime = 6.0f;
@@ -48,6 +48,15 @@ namespace Assets.Scripts
 
         public void Awake()
         {
+            _stateMachine = new FSMStateMachine();
+            _stateMachine.AddState(PLAYER_STATE_NORMAL, this.updateNormal, null, null);
+            _stateMachine.AddState(PLAYER_STATE_DUCKING, this.updateDucking, this.enterDuck, this.exitDuck);
+            _stateMachine.AddState(PLAYER_STATE_DODGING, this.updateDodging, this.enterDodge, this.exitDodge);
+            _stateMachine.AddState(PLAYER_STATE_LEDGE_GRAB, this.updateLedgeGrab, this.enterLedgeGrab, this.exitLedgeGrab);
+            _stateMachine.AddState(PLAYER_STATE_DYING, this.updateDying, this.enterDying, this.exitDying);
+            _stateMachine.AddState(PLAYER_STATE_FROZEN, null, null, this.exitFrozen);
+            _stateMachine.BeginWithInitialState(PLAYER_STATE_NORMAL);
+
             _jumpBufferTimer = new Timer(JumpBufferTime);
             _jumpBufferTimer.complete();
 
@@ -127,7 +136,7 @@ namespace Assets.Scripts
             // - Set gliding to false
 
             //base.Update(); - this calls updates on the player components, including PlayerState, which results in one of those corresponding methods being called
-    //TODO -  UPDATE STATE MACHINE
+            _stateMachine.Update();
 
             // - Check if we should pick up an arrow
 
@@ -140,10 +149,81 @@ namespace Assets.Scripts
             // - Update hair/other animated accessory 
         }
 
+        public string updateNormal()
+        {
+            return PLAYER_STATE_NORMAL;
+        }
+
+        public string updateDodging()
+        {
+            return PLAYER_STATE_DODGING;
+        }
+
+        public string updateDucking()
+        {
+            return PLAYER_STATE_DUCKING;
+        }
+
+        public string updateLedgeGrab()
+        {
+            return PLAYER_STATE_LEDGE_GRAB;
+        }
+
+        public string updateDying()
+        {
+            return PLAYER_STATE_DYING;
+        }
+
+        public void enterDodge()
+        {
+
+        }
+
+        public void exitDodge()
+        {
+
+        }
+
+        public void enterDuck()
+        {
+
+        }
+
+        public void exitDuck()
+        {
+
+        }
+
+        public void enterLedgeGrab()
+        {
+
+        }
+
+        public void exitLedgeGrab()
+        {
+
+        }
+
+        public void enterDying()
+        {
+
+        }
+
+        public void exitDying()
+        {
+
+        }
+
+        public void exitFrozen()
+        {
+
+        }
+
         /**
          * Private
          */
         private TFActor _actor;
+        private FSMStateMachine _stateMachine;
         private bool _onGround;
         private float _slipperyControl;
         private GameObject _lastPlatform;

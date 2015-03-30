@@ -8,11 +8,11 @@ namespace Assets.Scripts
     class FSMState
     {
         public string Identifier { get; private set; }
+        public StateUpdateHandler UpdateHandler { get; private set; }
         public StateEnteredCallback EnteredCallback { get; private set; }
         public StateExitedCallback ExitedCallback { get; private set; }
-        public StateUpdateHandler UpdateHandler { get; private set; }
 
-        public FSMState(string identifier, StateEnteredCallback enteredCallback = null, StateExitedCallback exitedCallback = null, StateUpdateHandler updateHandler = null)
+        public FSMState(string identifier, StateUpdateHandler updateHandler = null, StateEnteredCallback enteredCallback = null, StateExitedCallback exitedCallback = null)
         {
             this.Identifier = identifier;
             this.EnteredCallback = enteredCallback;
