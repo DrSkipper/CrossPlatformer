@@ -32,8 +32,14 @@ namespace Assets.Scripts
         public float JumpGraceTime = 6.0f;
         public float WallStickStart = 0.5f;
         public float SlipperyAccelerationMultiplier = 0.35f;
+		public float SlipperyReturnRate = 0.1f;
         public float Friction = 0.2f;
         public float AirFriction = 0.14f;
+        public float MaxRunSpeed = 1.5f;
+        public float RunAcceleration = 0.15f;
+        public float RunDecceleration = 0.03f;
+        public float AirRunAcceleration = 0.1f;
+        public float DodgeCooldownMultiplier = 0.8f;
 
         //NOTE - Set to 0 for free-aim
         [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
@@ -97,7 +103,7 @@ namespace Assets.Scripts
             else
             {
                 //TODO - Make this time based rather than update frame?
-                _slipperyControl = Mathf.Min(_slipperyControl + 0.1f, 1.0f);
+                _slipperyControl = Mathf.Min(_slipperyControl + this.SlipperyReturnRate, 1.0f);
             }
 
             // - Check if on hot coals
@@ -175,41 +181,37 @@ namespace Assets.Scripts
                 {
                     // Add movement particles
                 }
+
+                // Deccel if past max speed
                 if (Math.Abs(_velocity.x) > this.MaxRunSpeed && (float)Math.Sign(_velocity.x) == _moveAxis.x)
                 {
-                    this.Speed.X = Calc.Approach(this.Speed.X, this.MaxRunSpeed * this.moveAxis.X, 0.03f * Engine.TimeMult);
+                    float targetSpeed = this.MaxRunSpeed * _moveAxis.x;
+                    float deccelAmount = this.RunDecceleration * Time.deltaTime;
+                    _velocity.x = _velocity.x <= targetSpeed ? Mathf.Min(_velocity.x + deccelAmount, targetSpeed) : Mathf.Max(_velocity.x - deccelAmount, targetSpeed);
                 }
+
+                // Accelerate
                 else
                 {
-                    float num2 = this.OnGround ? 0.15f : 0.1f;
-                    num2 *= num;
-                    if (this.dodgeCooldown)
-                    {
-                        num2 *= 0.8f;
-                    }
-                    if (base.Level.Session.MatchSettings.Variants.SpeedBoots[this.PlayerIndex])
-                    {
-                        num2 *= 1.4f;
-                    }
-                    this.Speed.X = Calc.Approach(this.Speed.X, this.MaxRunSpeed * this.moveAxis.X, num2 * Engine.TimeMult);
+                    float acceleration = _onGround ? this.RunAcceleration : this.AirRunAcceleration;
+                    acceleration *= multiplier;
+                    if (_dodgeCooldown)
+                        acceleration *= this.DodgeCooldownMultiplier;
+
+                    acceleration *= Time.deltaTime;
+                    float targetSpeed = this.MaxRunSpeed * _moveAxis.x;
+                    _velocity.x = _velocity.x <= targetSpeed ? Mathf.Min(_velocity.x + acceleration, targetSpeed) : Mathf.Max(_velocity.x - acceleration, targetSpeed);
                 }
             }
-            if (this.Speed.Y < JUMP && base.Level.OnInterval(1))
-            {
-                base.Level.Particles.Emit(Particles.JumpPadTrail, Calc.Random.Range(this.Position, Vector2.One * 4f));
-            }
+            // Jump pad particles
+
             this.Cling = 0;
-            if (this.OnGround)
+
+            // If on ground, return wings to normal, otherwise:
+
+            if (!_onGround)
             {
-                this.wings.Normal();
-            }
-            else
-            {
-                this.flapGravity = Calc.Approach(this.flapGravity, 1f, ((this.flapGravity < VARJUMP_MULT) ? 0.012f : 0.048f) * Engine.TimeMult);
-                if (this.autoBounce && this.Speed.Y > 0f)
-                {
-                    this.autoBounce = false;
-                }
+                // Calculate flap gravity
 
                 // If jump button is held down use smaller number for gravity
                 float num3 = (this.Speed.Y <= 1f && (this.input.JumpCheck || this.autoBounce) && this.canVarJump) ? 0.15f : GRAVITY;
@@ -426,6 +428,7 @@ namespace Assets.Scripts
         private int _graceLedgeDir;
         private bool _aiming;
         private Vector2 _velocity;
+        private bool _dodgeCooldown;
 
         private float? getAimDirection(Vector2 axis)
         {
