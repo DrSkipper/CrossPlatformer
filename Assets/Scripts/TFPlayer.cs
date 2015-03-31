@@ -32,6 +32,8 @@ namespace Assets.Scripts
         public float JumpGraceTime = 6.0f;
         public float WallStickStart = 0.5f;
         public float SlipperyAccelerationMultiplier = 0.35f;
+        public float Friction = 0.2f;
+        public float AirFriction = 0.14f;
 
         //NOTE - Set to 0 for free-aim
         [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
@@ -158,36 +160,22 @@ namespace Assets.Scripts
             // Apply speed multiplier
             float multiplier = Mathf.Lerp(this.SlipperyAccelerationMultiplier, 1.0f, _slipperyControl);
 
-            if ((this.Aiming && this.OnGround) || (!this.Aiming && this.slipperyControl == 1f && this.moveAxis.X != (float)Math.Sign(this.Speed.X)))
+            // Turning around
+            if ((_aiming && _onGround) || (!_aiming && _slipperyControl == 1.0f && _moveAxis.x != Mathf.Sign(_velocity.x)))
             {
-                float maxMove;
-                if (this.HasWings)
-                {
-                    maxMove = ((Math.Abs(this.Speed.X) > this.MaxRunSpeed) ? 0.14f : 0.2f) * num * Engine.TimeMult;
-                }
-                else
-                {
-                    maxMove = ((this.OnGround || this.HasWings) ? 0.2f : 0.14f) * num * Engine.TimeMult;
-                }
-                this.Speed.X = Calc.Approach(this.Speed.X, 0f, maxMove);
+                //NOTE - doesn't account for wings
+                float maxMove = (_onGround ? this.Friction : this.AirFriction) * multiplier * Time.deltaTime;
+                _velocity.x = _velocity.x <= 0.0f ? Mathf.Min(_velocity.x + maxMove, 0.0f) : Mathf.Max(_velocity.x - maxMove, 0.0f);
             }
-            if (!this.Aiming && this.moveAxis.X != 0f)
+
+            // Normal movement
+            if (!_aiming && _moveAxis.x != 0.0f)
             {
-                if (this.OnGround && num == 1f)
+                if (_onGround && multiplier == 1.0f)
                 {
-                    if (Math.Sign(this.moveAxis.X) == -Math.Sign(this.Speed.X) && base.Level.OnInterval(1))
-                    {
-                        base.Level.Particles.Emit(this.DustParticleType, 2, this.Position + new Vector2((float)(-4 * Math.Sign(this.moveAxis.X)), 6f), Vector2.One * 2f);
-                    }
-                    else
-                    {
-                        if (this.moveAxis.X != 0f && base.Level.Session.MatchSettings.Variants.SpeedBoots[this.PlayerIndex] && Math.Abs(this.Speed.X) >= MAX_RUN && base.Level.OnInterval(3))
-                        {
-                            base.Level.Particles.Emit(this.DustParticleType, 1, this.Position + new Vector2((float)(-4 * Math.Sign(this.moveAxis.X)), 6f), Vector2.One * 2f);
-                        }
-                    }
+                    // Add movement particles
                 }
-                if (Math.Abs(this.Speed.X) > this.MaxRunSpeed && (float)Math.Sign(this.Speed.X) == this.moveAxis.X)
+                if (Math.Abs(_velocity.x) > this.MaxRunSpeed && (float)Math.Sign(_velocity.x) == _moveAxis.x)
                 {
                     this.Speed.X = Calc.Approach(this.Speed.X, this.MaxRunSpeed * this.moveAxis.X, 0.03f * Engine.TimeMult);
                 }
@@ -436,6 +424,8 @@ namespace Assets.Scripts
         private Timer _jumpGraceTimer;
         private float _wallStickMax;
         private int _graceLedgeDir;
+        private bool _aiming;
+        private Vector2 _velocity;
 
         private float? getAimDirection(Vector2 axis)
         {
