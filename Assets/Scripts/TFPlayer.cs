@@ -17,8 +17,8 @@ namespace Assets.Scripts
 
     class TFPlayer : VoBehavior
     {
-        public const uint MAX_AIM_SNAP_DIRECTIONS = 32;
-        public const uint DEFAULT_AIM_SNAP_DIRECTIONS = 8;
+        private const uint MAX_AIM_SNAP_DIRECTIONS = 32;
+        private const uint DEFAULT_AIM_SNAP_DIRECTIONS = 8;
 
         public const string PLAYER_STATE_NORMAL = "normal";
         public const string PLAYER_STATE_DUCKING = "ducking";
@@ -31,6 +31,7 @@ namespace Assets.Scripts
         public float JumpBufferTime = 6.0f;
         public float JumpGraceTime = 6.0f;
         public float WallStickStart = 0.5f;
+        public float SlipperyAccelerationMultiplier = 0.35f;
 
         //NOTE - Set to 0 for free-aim
         [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
@@ -93,6 +94,7 @@ namespace Assets.Scripts
             }
             else
             {
+                //TODO - Make this time based rather than update frame?
                 _slipperyControl = Mathf.Min(_slipperyControl + 0.1f, 1.0f);
             }
 
@@ -151,6 +153,205 @@ namespace Assets.Scripts
 
         public string updateNormal()
         {
+            // If we're trying to duck, go to ducking state, unless we are within aim-down grace period
+
+            // Apply speed multiplier
+            float multiplier = Mathf.Lerp(this.SlipperyAccelerationMultiplier, 1.0f, _slipperyControl);
+
+            if ((this.Aiming && this.OnGround) || (!this.Aiming && this.slipperyControl == 1f && this.moveAxis.X != (float)Math.Sign(this.Speed.X)))
+            {
+                float maxMove;
+                if (this.HasWings)
+                {
+                    maxMove = ((Math.Abs(this.Speed.X) > this.MaxRunSpeed) ? 0.14f : 0.2f) * num * Engine.TimeMult;
+                }
+                else
+                {
+                    maxMove = ((this.OnGround || this.HasWings) ? 0.2f : 0.14f) * num * Engine.TimeMult;
+                }
+                this.Speed.X = Calc.Approach(this.Speed.X, 0f, maxMove);
+            }
+            if (!this.Aiming && this.moveAxis.X != 0f)
+            {
+                if (this.OnGround && num == 1f)
+                {
+                    if (Math.Sign(this.moveAxis.X) == -Math.Sign(this.Speed.X) && base.Level.OnInterval(1))
+                    {
+                        base.Level.Particles.Emit(this.DustParticleType, 2, this.Position + new Vector2((float)(-4 * Math.Sign(this.moveAxis.X)), 6f), Vector2.One * 2f);
+                    }
+                    else
+                    {
+                        if (this.moveAxis.X != 0f && base.Level.Session.MatchSettings.Variants.SpeedBoots[this.PlayerIndex] && Math.Abs(this.Speed.X) >= MAX_RUN && base.Level.OnInterval(3))
+                        {
+                            base.Level.Particles.Emit(this.DustParticleType, 1, this.Position + new Vector2((float)(-4 * Math.Sign(this.moveAxis.X)), 6f), Vector2.One * 2f);
+                        }
+                    }
+                }
+                if (Math.Abs(this.Speed.X) > this.MaxRunSpeed && (float)Math.Sign(this.Speed.X) == this.moveAxis.X)
+                {
+                    this.Speed.X = Calc.Approach(this.Speed.X, this.MaxRunSpeed * this.moveAxis.X, 0.03f * Engine.TimeMult);
+                }
+                else
+                {
+                    float num2 = this.OnGround ? 0.15f : 0.1f;
+                    num2 *= num;
+                    if (this.dodgeCooldown)
+                    {
+                        num2 *= 0.8f;
+                    }
+                    if (base.Level.Session.MatchSettings.Variants.SpeedBoots[this.PlayerIndex])
+                    {
+                        num2 *= 1.4f;
+                    }
+                    this.Speed.X = Calc.Approach(this.Speed.X, this.MaxRunSpeed * this.moveAxis.X, num2 * Engine.TimeMult);
+                }
+            }
+            if (this.Speed.Y < JUMP && base.Level.OnInterval(1))
+            {
+                base.Level.Particles.Emit(Particles.JumpPadTrail, Calc.Random.Range(this.Position, Vector2.One * 4f));
+            }
+            this.Cling = 0;
+            if (this.OnGround)
+            {
+                this.wings.Normal();
+            }
+            else
+            {
+                this.flapGravity = Calc.Approach(this.flapGravity, 1f, ((this.flapGravity < VARJUMP_MULT) ? 0.012f : 0.048f) * Engine.TimeMult);
+                if (this.autoBounce && this.Speed.Y > 0f)
+                {
+                    this.autoBounce = false;
+                }
+
+                // If jump button is held down use smaller number for gravity
+                float num3 = (this.Speed.Y <= 1f && (this.input.JumpCheck || this.autoBounce) && this.canVarJump) ? 0.15f : GRAVITY;
+                num3 *= this.flapGravity;
+                float target = MAX_FALL;
+                if (this.moveAxis.X != 0f && this.CanWallSlide((Facing)this.moveAxis.X))
+                {
+                    this.wings.Normal();
+                    target = this.wallStickMax;
+                    this.wallStickMax = Calc.Approach(this.wallStickMax, 1.6f, 0.01f * Engine.TimeMult);
+                    this.Cling = (int)this.moveAxis.X;
+                    if (this.Speed.Y > 0f)
+                    {
+                        Sounds.char_wallslide[this.CharacterIndex].Play(base.X, 1f);
+                    }
+                    if (base.Level.OnInterval(3))
+                    {
+                        base.Level.Particles.Emit(this.DustParticleType, 1, this.Position + new Vector2((float)(3 * this.Cling), 0f), new Vector2(1f, 3f));
+                    }
+                }
+                else
+                {
+                    if (this.input.MoveY == 1 && this.Speed.Y > 0f)
+                    {
+                        this.wings.FallFast();
+                        target = FAST_FALL;
+                        MatchStats[] expr_5CB_cp_0 = base.Level.Session.MatchStats;
+                        int expr_5CB_cp_1 = this.PlayerIndex;
+                        expr_5CB_cp_0[expr_5CB_cp_1].FastFallFrames = expr_5CB_cp_0[expr_5CB_cp_1].FastFallFrames + Engine.TimeMult;
+                    }
+                    else
+                    {
+                        if (this.input.JumpCheck && this.HasWings && this.Speed.Y >= -1f)
+                        {
+                            this.wings.Glide();
+                            this.gliding = true;
+                            target = 0.8f;
+                        }
+                        else
+                        {
+                            this.wings.Normal();
+                        }
+                    }
+                }
+                if (this.Cling == 0 || this.Speed.Y <= 0f)
+                {
+                    Sounds.char_wallslide[this.CharacterIndex].Stop(true);
+                }
+                this.Speed.Y = Calc.Approach(this.Speed.Y, target, num3 * Engine.TimeMult);
+            }
+            if (!this.dodgeCooldown && this.input.DodgePressed && !base.Level.Session.MatchSettings.Variants.NoDodging[this.PlayerIndex])
+            {
+                if (this.moveAxis.X != 0f)
+                {
+                    this.Facing = (Facing)this.moveAxis.X;
+                }
+                return 3;
+            }
+            if (this.onHotCoals)
+            {
+                this.HotCoalsBounce();
+            }
+            else
+            {
+                if (this.input.JumpPressed || this.jumpBufferCounter)
+                {
+                    if (this.jumpGraceCounter)
+                    {
+                        int num4 = this.graceLedgeDir;
+                        if (this.input.MoveX != num4)
+                        {
+                            num4 = 0;
+                        }
+                        this.Jump(true, true, false, num4);
+                    }
+                    else
+                    {
+                        if (this.CanWallJump(Facing.Left))
+                        {
+                            this.WallJump(1);
+                        }
+                        else
+                        {
+                            if (this.CanWallJump(Facing.Right))
+                            {
+                                this.WallJump(-1);
+                            }
+                            else
+                            {
+                                if (this.HasWings && !this.flapBounceCounter)
+                                {
+                                    this.WingsJump();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (this.Aiming)
+            {
+                if (!this.input.ShootCheck)
+                {
+                    this.ShootArrow();
+                }
+            }
+            else
+            {
+                if (this.input.ShootPressed)
+                {
+                    this.Aiming = true;
+                }
+            }
+            if (this.moveAxis.X != 0f)
+            {
+                this.Facing = (Facing)this.moveAxis.X;
+            }
+            base.MoveH(this.Speed.X * Engine.TimeMult, this.onCollideH);
+            base.MoveV(this.Speed.Y * Engine.TimeMult, this.onCollideV);
+            if (!this.OnGround && !this.Aiming && this.Speed.Y >= 0f && this.moveAxis.X != 0f && this.moveAxis.Y <= 0f && base.CollideCheck(GameTags.Solid, this.Position + Vector2.UnitX * this.moveAxis.X * 2f))
+            {
+                int direction = Math.Sign(this.moveAxis.X);
+                for (int i = 0; i < 10; i++)
+                {
+                    if (this.CanGrabLedge((int)base.Y - i, direction))
+                    {
+                        return this.GrabLedge((int)base.Y - i, direction);
+                    }
+                }
+            }
+
             return PLAYER_STATE_NORMAL;
         }
 
