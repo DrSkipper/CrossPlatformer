@@ -28,6 +28,8 @@ namespace Assets.Scripts
         public const string PLAYER_STATE_FROZEN = "frozen";
 
         public string SlipperyTag = null;
+        public float Gravity = 0.3f;
+        public float JumpHeldGravityMultiplier = 0.5f;
         public float JumpBufferTime = 6.0f;
         public float JumpGraceTime = 6.0f;
         public float WallStickStart = 0.5f;
@@ -40,6 +42,9 @@ namespace Assets.Scripts
         public float RunDecceleration = 0.03f;
         public float AirRunAcceleration = 0.1f;
         public float DodgeCooldownMultiplier = 0.8f;
+        public float MaxFallSpeed = 2.8f;
+        public float WallJumpCheck = 2.0f;
+        public int LedgeCheckVertical = 10;
 
         //NOTE - Set to 0 for free-aim
         [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
@@ -205,7 +210,7 @@ namespace Assets.Scripts
             }
             // Jump pad particles
 
-            this.Cling = 0;
+            _cling = 0;
 
             // If on ground, return wings to normal, otherwise:
 
@@ -214,10 +219,10 @@ namespace Assets.Scripts
                 // Calculate flap gravity
 
                 // If jump button is held down use smaller number for gravity
-                float num3 = (this.Speed.Y <= 1f && (this.input.JumpCheck || this.autoBounce) && this.canVarJump) ? 0.15f : GRAVITY;
-                num3 *= this.flapGravity;
-                float target = MAX_FALL;
-                if (this.moveAxis.X != 0f && this.CanWallSlide((Facing)this.moveAxis.X))
+                float gravity = (_velocity.y <= 1.0f && Input.GetButtonDown("Jump") && _canJumpHold) ? (this.JumpHeldGravityMultiplier * this.Gravity) : this.Gravity;
+
+                float targetFallSpeed = this.MaxFallSpeed;
+                if (_moveAxis.x != 0.0f && this.CanWallSlide((Facing)_moveAxis.x))
                 {
                     this.wings.Normal();
                     target = this.wallStickMax;
@@ -429,6 +434,8 @@ namespace Assets.Scripts
         private bool _aiming;
         private Vector2 _velocity;
         private bool _dodgeCooldown;
+        private int _cling;
+        private bool _canJumpHold;
 
         private float? getAimDirection(Vector2 axis)
         {
@@ -441,6 +448,25 @@ namespace Assets.Scripts
                 return new float?(Mathf.Round((axis.Angle() / increment)) * increment);
             }
             return new float?(axis.Angle());
+        }
+
+        private bool canWallSlide(Facing dir)
+        {
+            return !_aiming && this.input.MoveY != 1 && canWallJump(dir);
+        }
+
+        private bool canWallJump(Facing dir)
+        {
+            //TODO - is LedgeCheckVertical the right thing to use here?
+            // Make sure we are far enough off the ground
+            if (this.boxCollider2D.CollideFirst(0.0f, -Vector2.up.y * (this.LedgeCheckVertical / 2)))
+                return false;
+
+            if (dir == Facing.Right)
+            {
+                return base.Scene.CollideCheck(WrapMath.Vec(base.Right - 1f + this.WallJumpCheck, base.Top), GameTags.Solid);
+            }
+            return base.Scene.CollideCheck(WrapMath.Vec(base.Left - this.WallJumpCheck, base.Top), GameTags.Solid);
         }
 
         /**
