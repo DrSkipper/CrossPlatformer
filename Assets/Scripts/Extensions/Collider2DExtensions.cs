@@ -6,8 +6,19 @@ using System.Text;
 
 namespace Assets.Scripts.Extensions
 {
-    public static class BoxCollider2DExtensions
+    public static class Collider2DExtensions
     {
+        /**
+         * Collider2D
+         */
+        public static float LeftX(this BoxCollider2D self) { return self.bounds.min.x; }
+        public static float RightX(this BoxCollider2D self) { return self.bounds.max.x; }
+        public static float TopY(this BoxCollider2D self) { return self.bounds.max.y; }
+        public static float BottomY(this BoxCollider2D self) { return self.bounds.min.y; }
+
+        /**
+         * BoxCollider2D
+         */
         public static GameObject CollideFirst(this BoxCollider2D self, float offsetX = 0.0f, float offsetY = 0.0f, int layerMask = Physics2D.DefaultRaycastLayers, string objectTag = null)
         {
             Bounds bounds = self.bounds;
