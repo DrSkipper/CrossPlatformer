@@ -450,23 +450,24 @@ namespace Assets.Scripts
             return new float?(axis.Angle());
         }
 
-        private bool canWallSlide(Facing dir)
+        private bool canWallSlide(Facing direction)
         {
-            return !_aiming && this.input.MoveY != 1 && canWallJump(dir);
+            return !_aiming && this.input.MoveY != 1 && canWallJump(direction);
         }
 
-        private bool canWallJump(Facing dir)
+        private bool canWallJump(Facing direction)
         {
             //TODO - is LedgeCheckVertical the right thing to use here?
             // Make sure we are far enough off the ground
             if (this.boxCollider2D.CollideFirst(0.0f, -Vector2.up.y * (this.LedgeCheckVertical / 2)))
                 return false;
 
-            if (dir == Facing.Right)
-            {
-                return base.Scene.CollideCheck(WrapMath.Vec(base.Right - 1f + this.WallJumpCheck, base.Top), GameTags.Solid);
-            }
-            return base.Scene.CollideCheck(WrapMath.Vec(base.Left - this.WallJumpCheck, base.Top), GameTags.Solid);
+            //TODO - is the -1.0f necessary?
+            // We can only wall jump if the top of our body is next to the wall
+            Vector2 wallJumpCollidePoint = direction == Facing.Right ?
+                new Vector2(_actor.RightX - 1.0f + this.WallJumpCheck, _actor.TopY) :
+                new Vector2(_actor.LeftX - this.WallJumpCheck, _actor.TopY);
+            return _actor.CollidePoint(wallJumpCollidePoint);
         }
 
         /**

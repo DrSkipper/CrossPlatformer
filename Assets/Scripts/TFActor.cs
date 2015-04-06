@@ -13,6 +13,11 @@ namespace Assets.Scripts
         public LayerMask CollisionMask = 0;
         public string CollisionTag = null;
 
+        public float LeftX { get { return this.boxCollider2D.LeftX(); } }
+        public float RightX { get { return this.boxCollider2D.RightX(); } }
+        public float TopY { get { return this.boxCollider2D.TopY(); } }
+        public float BottomY { get { return this.boxCollider2D.BottomY(); } }
+
         public Vector2 ActualPosition
         {
             get
@@ -197,6 +202,30 @@ namespace Assets.Scripts
             return this.boxCollider2D.CollideCheck(solid, 0.0f, -Vector2.up.y);
         }
 
+        public GameObject CollidePoint(Vector2 point)
+        {
+            GameObject collidedObject = null;
+            if (this.CollisionTag == null)
+            {
+                Collider2D collider = Physics2D.OverlapPoint(point, this.CollisionMask);
+                if (collider != null)
+                    collidedObject = collider.gameObject;
+            }
+            else
+            {
+                Collider2D[] colliders = Physics2D.OverlapPointAll(point, this.CollisionMask);
+                foreach (Collider2D collider in colliders)
+                {
+                    if (collider.tag == this.CollisionTag)
+                    {
+                        collidedObject = collider.gameObject;
+                        break;
+                    }
+                }
+            }
+            return collidedObject;
+        }
+
         /**
          * Private
          */
@@ -224,16 +253,16 @@ namespace Assets.Scripts
 		private bool SnapToLeftmostCollision(ref GameObject block) // ref Solid block
         {
             bool result = false;
-            float right = this.boxCollider2D.bounds.max.x;
+            float right = this.RightX;
             float minX = right;
             foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
                     BoxCollider2D otherCollider = current.GetComponent<BoxCollider2D>();
-                    if (otherCollider.bounds.min.x < minX)
+                    if (otherCollider.LeftX() < minX)
                     {
-                        minX = otherCollider.bounds.min.x;
+                        minX = otherCollider.LeftX();
                         block = current;
                         result = true;
                     }
@@ -247,16 +276,16 @@ namespace Assets.Scripts
         private bool SnapToRightmostCollision(ref GameObject block) // ref Solid block
         {
             bool result = false;
-            float left = this.boxCollider2D.bounds.min.x;
+            float left = this.LeftX;
             float maxX = left;
             foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
                     BoxCollider2D otherCollider = current.GetComponent<BoxCollider2D>();
-                    if (otherCollider.bounds.max.x > maxX)
+                    if (otherCollider.RightX() > maxX)
                     {
-                        maxX = otherCollider.bounds.max.x;
+                        maxX = otherCollider.RightX();
                         block = current;
                         result = true;
                     }
@@ -270,16 +299,16 @@ namespace Assets.Scripts
         private bool SnapToTopmostCollision(ref GameObject block) // ref Solid block
         {
             bool result = false;
-            float bottom = this.boxCollider2D.bounds.min.y;
+            float bottom = this.BottomY;
             float maxY = bottom;
             foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
                     BoxCollider2D otherCollider = current.GetComponent<BoxCollider2D>();
-                    if (otherCollider.bounds.max.y > maxY)
+                    if (otherCollider.TopY() > maxY)
                     {
-                        maxY = otherCollider.bounds.max.y;
+                        maxY = otherCollider.TopY();
                         block = current;
                         result = true;
                     }
@@ -293,16 +322,16 @@ namespace Assets.Scripts
         private bool SnapToBottommostCollision(ref GameObject block) // ref Solid block
         {
             bool result = false;
-            float top = this.boxCollider2D.bounds.max.y;
+            float top = this.TopY;
             float minY = top;
             foreach (GameObject current in _allCollidableObjects)
             {
                 if (this.boxCollider2D.CollideCheck(current))
                 {
                     BoxCollider2D otherCollider = current.GetComponent<BoxCollider2D>();
-                    if (otherCollider.bounds.min.y < minY)
+                    if (otherCollider.BottomY() < minY)
                     {
-                        minY = otherCollider.bounds.min.y;
+                        minY = otherCollider.BottomY();
                         block = current;
                         result = true;
                     }
