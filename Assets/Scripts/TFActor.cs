@@ -199,7 +199,7 @@ namespace Assets.Scripts
         public virtual bool IsRiding(GameObject solid) // Solid solid
         {
             // Check if we are standing on this object (if so we can "ride" it - i.e. use its velocity as our base)
-            return this.boxCollider2D.CollideCheck(solid, 0.0f, -Vector2.up.y);
+            return this.boxCollider2D.CollideCheck(solid, 0.0f, TFPhysics.DownY);
         }
 
         public GameObject CollidePoint(Vector2 point)
