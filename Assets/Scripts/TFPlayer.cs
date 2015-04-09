@@ -114,17 +114,18 @@ namespace Assets.Scripts
             // - Check if on hot coals
 
             // - Get input state for this player
+            _inputState = InputState.GetInputStateForPlayer(0);
+
             // - Get aimDirection (circular) from joystick axis
-            _moveAxis = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
-            _aimAxis = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
-            float? aimDirection = getAimDirection(_aimAxis);
+            _moveAxis = new Vector2(_inputState.MoveX, _inputState.MoveY);
+            float? aimDirection = getAimDirection(_inputState.AimAxis);
             _aimDirection = aimDirection.HasValue ? aimDirection.GetValueOrDefault() : (_facing == Facing.Right ? 0.0f : Mathf.PI);
 
             // - If we're frozen, just set Facing to appropriate direction and exit Update function
 
             // - Update jumpBufferCounter, and if input indicates Jump is pressed, set it to JUMP_BUFFER (6)
             _jumpBufferTimer.update();
-            if (Input.GetButtonDown("Jump"))
+            if (_inputState.JumpStarted)
             {
                 _jumpBufferTimer.reset();
                 _jumpBufferTimer.start();
@@ -219,7 +220,7 @@ namespace Assets.Scripts
                 // Calculate flap gravity
 
                 // If jump button is held down use smaller number for gravity
-                float gravity = (_velocity.y <= 1.0f && Input.GetButtonDown("Jump") && _canJumpHold) ? (this.JumpHeldGravityMultiplier * this.Gravity) : this.Gravity;
+                float gravity = (_velocity.y <= 1.0f && _inputState.Jump && _canJumpHold) ? (this.JumpHeldGravityMultiplier * this.Gravity) : this.Gravity;
 
                 float targetFallSpeed = this.MaxFallSpeed;
                 if (_moveAxis.x != 0.0f && this.CanWallSlide((Facing)_moveAxis.x))
@@ -424,7 +425,6 @@ namespace Assets.Scripts
         private float _slipperyControl;
         private GameObject _lastPlatform;
         private Vector2 _moveAxis;
-        private Vector2 _aimAxis;
         private float _aimDirection;
         private Facing _facing = Facing.Right;
         private Timer _jumpBufferTimer;
@@ -436,6 +436,7 @@ namespace Assets.Scripts
         private bool _dodgeCooldown;
         private int _cling;
         private bool _canJumpHold;
+        private InputState _inputState;
 
         private float? getAimDirection(Vector2 axis)
         {
@@ -452,7 +453,7 @@ namespace Assets.Scripts
 
         private bool canWallSlide(Facing direction)
         {
-            return !_aiming && this.input.MoveY != 1 && canWallJump(direction);
+            return !_aiming && _inputState.MoveY != -Math.Sign(Vector2.up.y) && canWallJump(direction);
         }
 
         private bool canWallJump(Facing direction)
