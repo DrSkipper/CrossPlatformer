@@ -14,8 +14,13 @@ namespace Assets.Scripts
         public const float TRIGGER_THRESHOLD = 0.1f;
 
         /**
+         * OLD:
          * [button]Check = Button is currently down.
-         * [button]Pressed = Button went from Depressed to Pressed state this update frame.
+         * [button]Pressed = Button went from Depressed to Pressed state this update.
+         * 
+         * NEW:
+         * [button] = Button is currently down.
+         * [button]Started = Button went from Depressed to Pressed state this update.
          */
         public bool Jump;
         public bool JumpStarted;

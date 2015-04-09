@@ -29,6 +29,8 @@ namespace Assets.Scripts
 
         public string SlipperyTag = null;
         public float Gravity = 0.3f;
+        public float MaxFallSpeed = 2.8f;
+        public float FastFallSpeed = 3.5f;
         public float JumpHeldGravityMultiplier = 0.5f;
         public float JumpBufferTime = 6.0f;
         public float JumpGraceTime = 6.0f;
@@ -42,8 +44,9 @@ namespace Assets.Scripts
         public float RunDecceleration = 0.03f;
         public float AirRunAcceleration = 0.1f;
         public float DodgeCooldownMultiplier = 0.8f;
-        public float MaxFallSpeed = 2.8f;
         public float WallJumpCheck = 2.0f;
+        public float WallStickMaxFall = 1.6f;
+        public float WallStickAdd = 0.01f;
         public int LedgeCheckVertical = 10;
 
         //NOTE - Set to 0 for free-aim
@@ -94,14 +97,14 @@ namespace Assets.Scripts
 
             // - Send collision ray(s) from our position in UnitY direction (down) to detect OnGround
             // - If so, store hit entity as lastPlatform. Check if this platform is slippery or hot coals and store bools for those as well.
-            GameObject groundObject = this.boxCollider2D.CollideFirst(0.0f, -Vector2.up.y, this.actor.CollisionMask, this.actor.CollisionTag);
+            GameObject groundObject = this.boxCollider2D.CollideFirst(0.0f, TFPhysics.DownY, this.actor.CollisionMask, this.actor.CollisionTag);
             _onGround = groundObject != null;
 
             if (_onGround)
             {
                 _slipperyControl = (this.SlipperyTag != null &&
                     (this.SlipperyTag == this.actor.CollisionTag ||
-                    this.boxCollider2D.CollideFirst(0.0f, -Vector2.up.y, this.actor.CollisionMask, this.SlipperyTag))) ? 0.0f : 1.0f;
+                    this.boxCollider2D.CollideFirst(0.0f, TFPhysics.DownY, this.actor.CollisionMask, this.SlipperyTag))) ? 0.0f : 1.0f;
 
                 _lastPlatform = groundObject;
             }
@@ -117,7 +120,6 @@ namespace Assets.Scripts
             _inputState = InputState.GetInputStateForPlayer(0);
 
             // - Get aimDirection (circular) from joystick axis
-            _moveAxis = new Vector2(_inputState.MoveX, _inputState.MoveY);
             float? aimDirection = getAimDirection(_inputState.AimAxis);
             _aimDirection = aimDirection.HasValue ? aimDirection.GetValueOrDefault() : (_facing == Facing.Right ? 0.0f : Mathf.PI);
 
@@ -173,27 +175,19 @@ namespace Assets.Scripts
             float multiplier = Mathf.Lerp(this.SlipperyAccelerationMultiplier, 1.0f, _slipperyControl);
 
             // Turning around
-            if ((_aiming && _onGround) || (!_aiming && _slipperyControl == 1.0f && _moveAxis.x != Mathf.Sign(_velocity.x)))
+            if ((_aiming && _onGround) || (!_aiming && _slipperyControl == 1.0f && _inputState.MoveX != Math.Sign(_velocity.x)))
             {
-                //NOTE - doesn't account for wings
-                float maxMove = (_onGround ? this.Friction : this.AirFriction) * multiplier * Time.deltaTime;
-                _velocity.x = _velocity.x <= 0.0f ? Mathf.Min(_velocity.x + maxMove, 0.0f) : Mathf.Max(_velocity.x - maxMove, 0.0f);
+                float maxMove = (_onGround ? this.Friction : this.AirFriction) * multiplier;
+                _velocity.x = _velocity.x.Approach(0.0f, maxMove * Time.deltaTime);
             }
 
             // Normal movement
-            if (!_aiming && _moveAxis.x != 0.0f)
+            if (!_aiming && _inputState.MoveX != 0)
             {
-                if (_onGround && multiplier == 1.0f)
-                {
-                    // Add movement particles
-                }
-
                 // Deccel if past max speed
-                if (Math.Abs(_velocity.x) > this.MaxRunSpeed && (float)Math.Sign(_velocity.x) == _moveAxis.x)
+                if (Math.Abs(_velocity.x) > this.MaxRunSpeed && Math.Sign(_velocity.x) == _inputState.MoveX)
                 {
-                    float targetSpeed = this.MaxRunSpeed * _moveAxis.x;
-                    float deccelAmount = this.RunDecceleration * Time.deltaTime;
-                    _velocity.x = _velocity.x <= targetSpeed ? Mathf.Min(_velocity.x + deccelAmount, targetSpeed) : Mathf.Max(_velocity.x - deccelAmount, targetSpeed);
+                    _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * (float)_inputState.MoveX, this.RunDecceleration * Time.deltaTime);
                 }
 
                 // Accelerate
@@ -204,118 +198,77 @@ namespace Assets.Scripts
                     if (_dodgeCooldown)
                         acceleration *= this.DodgeCooldownMultiplier;
 
-                    acceleration *= Time.deltaTime;
-                    float targetSpeed = this.MaxRunSpeed * _moveAxis.x;
-                    _velocity.x = _velocity.x <= targetSpeed ? Mathf.Min(_velocity.x + acceleration, targetSpeed) : Mathf.Max(_velocity.x - acceleration, targetSpeed);
+                    _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * (float)_inputState.MoveX, acceleration *= Time.deltaTime);
                 }
             }
-            // Jump pad particles
 
             _cling = 0;
 
-            // If on ground, return wings to normal, otherwise:
-
             if (!_onGround)
             {
-                // Calculate flap gravity
-
                 // If jump button is held down use smaller number for gravity
                 float gravity = (_velocity.y <= 1.0f && _inputState.Jump && _canJumpHold) ? (this.JumpHeldGravityMultiplier * this.Gravity) : this.Gravity;
-
                 float targetFallSpeed = this.MaxFallSpeed;
-                if (_moveAxis.x != 0.0f && this.CanWallSlide((Facing)_moveAxis.x))
+                
+                // Check if we're wall sliding
+                if (_inputState.MoveX != 0 && canWallSlide((Facing)_inputState.MoveX))
                 {
-                    this.wings.Normal();
-                    target = this.wallStickMax;
-                    this.wallStickMax = Calc.Approach(this.wallStickMax, 1.6f, 0.01f * Engine.TimeMult);
-                    this.Cling = (int)this.moveAxis.X;
-                    if (this.Speed.Y > 0f)
-                    {
-                        Sounds.char_wallslide[this.CharacterIndex].Play(base.X, 1f);
-                    }
-                    if (base.Level.OnInterval(3))
-                    {
-                        base.Level.Particles.Emit(this.DustParticleType, 1, this.Position + new Vector2((float)(3 * this.Cling), 0f), new Vector2(1f, 3f));
-                    }
+                    targetFallSpeed = _wallStickMax;
+                    _wallStickMax = _wallStickMax.Approach(this.WallStickMaxFall, this.WallStickAdd * Time.deltaTime);
+                    _cling = _inputState.MoveX;
                 }
                 else
                 {
-                    if (this.input.MoveY == 1 && this.Speed.Y > 0f)
+                    // Check if we need to fast fall
+                    if (_inputState.MoveY == TFPhysics.DownY && Math.Sign(_velocity.y) == TFPhysics.DownY)
+                        targetFallSpeed = this.FastFallSpeed;
+                }
+                _velocity.y = _velocity.y.Approach(targetFallSpeed, gravity * Time.deltaTime);
+            }
+
+            // Check if we need to dodge
+            if (!_dodgeCooldown && _inputState.DodgeStarted)
+            {
+                if (_inputState.MoveX != 0)
+                    _facing = (Facing)_inputState.MoveX;
+                return PLAYER_STATE_DODGING;
+            }
+
+            // Check if it's time to jump
+            if (_inputState.JumpStarted || !_jumpBufferTimer.completed)
+            {
+                if (!_jumpGraceTimer.completed)
+                {
+                    int num4 = this.graceLedgeDir;
+                    if (this.input.MoveX != num4)
                     {
-                        this.wings.FallFast();
-                        target = FAST_FALL;
-                        MatchStats[] expr_5CB_cp_0 = base.Level.Session.MatchStats;
-                        int expr_5CB_cp_1 = this.PlayerIndex;
-                        expr_5CB_cp_0[expr_5CB_cp_1].FastFallFrames = expr_5CB_cp_0[expr_5CB_cp_1].FastFallFrames + Engine.TimeMult;
+                        num4 = 0;
+                    }
+                    this.Jump(true, true, false, num4);
+                }
+                else
+                {
+                    if (this.CanWallJump(Facing.Left))
+                    {
+                        this.WallJump(1);
                     }
                     else
                     {
-                        if (this.input.JumpCheck && this.HasWings && this.Speed.Y >= -1f)
+                        if (this.CanWallJump(Facing.Right))
                         {
-                            this.wings.Glide();
-                            this.gliding = true;
-                            target = 0.8f;
+                            this.WallJump(-1);
                         }
                         else
                         {
-                            this.wings.Normal();
-                        }
-                    }
-                }
-                if (this.Cling == 0 || this.Speed.Y <= 0f)
-                {
-                    Sounds.char_wallslide[this.CharacterIndex].Stop(true);
-                }
-                this.Speed.Y = Calc.Approach(this.Speed.Y, target, num3 * Engine.TimeMult);
-            }
-            if (!this.dodgeCooldown && this.input.DodgePressed && !base.Level.Session.MatchSettings.Variants.NoDodging[this.PlayerIndex])
-            {
-                if (this.moveAxis.X != 0f)
-                {
-                    this.Facing = (Facing)this.moveAxis.X;
-                }
-                return 3;
-            }
-            if (this.onHotCoals)
-            {
-                this.HotCoalsBounce();
-            }
-            else
-            {
-                if (this.input.JumpPressed || this.jumpBufferCounter)
-                {
-                    if (this.jumpGraceCounter)
-                    {
-                        int num4 = this.graceLedgeDir;
-                        if (this.input.MoveX != num4)
-                        {
-                            num4 = 0;
-                        }
-                        this.Jump(true, true, false, num4);
-                    }
-                    else
-                    {
-                        if (this.CanWallJump(Facing.Left))
-                        {
-                            this.WallJump(1);
-                        }
-                        else
-                        {
-                            if (this.CanWallJump(Facing.Right))
+                            if (this.HasWings && !this.flapBounceCounter)
                             {
-                                this.WallJump(-1);
-                            }
-                            else
-                            {
-                                if (this.HasWings && !this.flapBounceCounter)
-                                {
-                                    this.WingsJump();
-                                }
+                                this.WingsJump();
                             }
                         }
                     }
                 }
             }
+
             if (this.Aiming)
             {
                 if (!this.input.ShootCheck)
@@ -424,7 +377,6 @@ namespace Assets.Scripts
         private bool _onGround;
         private float _slipperyControl;
         private GameObject _lastPlatform;
-        private Vector2 _moveAxis;
         private float _aimDirection;
         private Facing _facing = Facing.Right;
         private Timer _jumpBufferTimer;
@@ -453,14 +405,14 @@ namespace Assets.Scripts
 
         private bool canWallSlide(Facing direction)
         {
-            return !_aiming && _inputState.MoveY != -Math.Sign(Vector2.up.y) && canWallJump(direction);
+            return !_aiming && _inputState.MoveY != TFPhysics.DownY && canWallJump(direction);
         }
 
         private bool canWallJump(Facing direction)
         {
             //TODO - is LedgeCheckVertical the right thing to use here?
             // Make sure we are far enough off the ground
-            if (this.boxCollider2D.CollideFirst(0.0f, -Vector2.up.y * (this.LedgeCheckVertical / 2)))
+            if (this.boxCollider2D.CollideFirst(0.0f, (float)TFPhysics.DownY * (this.LedgeCheckVertical / 2)))
                 return false;
 
             //TODO - is the -1.0f necessary?
