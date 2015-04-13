@@ -10,11 +10,13 @@ namespace Assets.Scripts.Extensions
     {
         public static float Approach(this float self, float target, float maxChange)
         {
+            maxChange = Mathf.Abs(maxChange);
             return self <= target ? Mathf.Min(self + maxChange, target) : Mathf.Max(self - maxChange, target);
         }
 
         public static int Approach(this int self, int target, int maxChange)
         {
+            maxChange = Math.Abs(maxChange);
             return self <= target ? Math.Min(self + maxChange, target) : Math.Max(self - maxChange, target);
         }
     }

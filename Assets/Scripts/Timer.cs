@@ -9,9 +9,9 @@ public class Timer
 	public bool loops;
 	public bool completed { get; private set; }
 
-	public Timer(float durationSeconds, bool loops = false, bool startsImmediately = true, TimerCallback callback = null)
+	public Timer(float duration, bool loops = false, bool startsImmediately = true, TimerCallback callback = null)
 	{
-		_timeRemaining = _durationSeconds = durationSeconds;
+		_timeRemaining = _duration = duration;
 		this.loops = loops;
 		this.callback = callback;
 		this.paused = !startsImmediately;
@@ -24,7 +24,7 @@ public class Timer
 
     public void reset()
     {
-        _timeRemaining = _durationSeconds;
+        _timeRemaining = _duration;
         this.completed = false;
     }
 
@@ -34,16 +34,16 @@ public class Timer
             this.callback();
 
         if (this.loops)
-            _timeRemaining = _durationSeconds;
+            _timeRemaining = _duration;
         else
             this.completed = true;
     }
 
-	public void update()
+	public void update(float dt)
 	{
 		if (!this.paused && !this.completed)
 		{
-			_timeRemaining -= Time.deltaTime;
+			_timeRemaining -= dt;
 
 			if (_timeRemaining <= 0.0f)
                 this.complete();
@@ -59,6 +59,6 @@ public class Timer
 	/**
 	 * Private
 	 */
-	private float _durationSeconds;
+	private float _duration;
 	private float _timeRemaining;
 }

@@ -86,6 +86,8 @@ namespace Assets.Scripts
 
             _jumpGraceTimer = new Timer(JumpGraceTime);
             _jumpGraceTimer.complete();
+
+            _slipperyControl = 1.0f;
         }
 
         public void Update()
@@ -118,7 +120,7 @@ namespace Assets.Scripts
             _aimDirection = aimDirection.HasValue ? aimDirection.GetValueOrDefault() : (_facing == Facing.Right ? 0.0f : Mathf.PI);
 
             // Update jumpBufferCounter, and if input indicates Jump is pressed, set it to JUMP_BUFFER (6)
-            _jumpBufferTimer.update();
+            _jumpBufferTimer.update(TFPhysics.DeltaFrames);
             if (_inputState.JumpStarted)
             {
                 _jumpBufferTimer.reset();
@@ -128,6 +130,8 @@ namespace Assets.Scripts
             // - If we're aiming, play aiming sound (?) and update lastAimDirection to AimDirection
 
             // Check if we're set to auto-move, and if so, set our input axis x value to our autoMove value
+            if (_autoMoveTimer != null)
+                _autoMoveTimer.update(TFPhysics.DeltaFrames);
             if (_autoMove != 0)
                 _moveAxis.X = _autoMove;
 
@@ -140,7 +144,11 @@ namespace Assets.Scripts
                 _graceLedgeDir = 0;
             }
 
-            // - Otherwise, update our jump grace counter (I believe this is for stored jumps)
+            // Otherwise, update our jump grace counter (I believe this is for stored jumps)
+            else
+            {
+                _jumpGraceTimer.update(TFPhysics.DeltaFrames);
+            }
 
             // Call the update method for our current state
             _stateMachine.Update();
@@ -152,7 +160,7 @@ namespace Assets.Scripts
         {
             // If we're trying to duck, go to ducking state, unless we are within aim-down grace period
 
-            // Apply speed multiplier
+            // Calculate slippery surface modifier
             float multiplier = Mathf.Lerp(this.SlipperyAccelerationMultiplier, 1.0f, _slipperyControl);
 
             // Turning around
@@ -205,8 +213,8 @@ namespace Assets.Scripts
                     if (_inputState.MoveY == TFPhysics.DownY && Math.Sign(_velocity.y) == TFPhysics.DownY)
                         targetFallSpeed = this.FastFallSpeed;
                 }
-                float time = TFPhysics.DeltaFrames;
-                _velocity.y = _velocity.y.Approach(targetFallSpeed, TFPhysics.DownY * gravity * TFPhysics.DeltaFrames);
+
+                _velocity.y = _velocity.y.Approach(TFPhysics.DownY * targetFallSpeed, TFPhysics.DownY * gravity * TFPhysics.DeltaFrames);
             }
 
             // Check if we need to dodge
@@ -521,6 +529,7 @@ namespace Assets.Scripts
         private void finishAutoMove()
         {
             _autoMove = 0;
+            _autoMoveTimer = null;
         }
 
         /**
