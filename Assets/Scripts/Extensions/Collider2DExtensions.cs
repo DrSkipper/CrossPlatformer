@@ -28,8 +28,11 @@ namespace Assets.Scripts.Extensions
 
             foreach (Collider2D collider in colliders)
             {
-                if (collider != self && (objectTag == null || collider.tag == objectTag))
-                    return collider.gameObject;
+                if (collider != self)
+                {
+                    if (collider != self && (objectTag == null || collider.tag == objectTag))
+                        return collider.gameObject;
+                }
             }
 
             return null;

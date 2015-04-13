@@ -31,10 +31,18 @@ namespace Assets.Scripts
         public float Gravity = 0.3f;
         public float MaxFallSpeed = 2.8f;
         public float FastFallSpeed = 3.5f;
+        public float JumpPower = 3.2f;
+        public float BoostedJumpPower = 4.3f;
+        public float JumpHorizontalBoost = 0.5f;
         public float JumpHeldGravityMultiplier = 0.5f;
         public float JumpBufferTime = 6.0f;
         public float JumpGraceTime = 6.0f;
+        public float LandingHorizontalMultiplier = 0.6f;
         public float WallStickStart = 0.5f;
+        public int WallJumpCheck = 2;
+        public int WallJumpTime = 12;
+        public float WallStickMaxFall = 1.6f;
+        public float WallStickAdd = 0.01f;
         public float SlipperyAccelerationMultiplier = 0.35f;
 		public float SlipperyReturnRate = 0.1f;
         public float Friction = 0.2f;
@@ -44,9 +52,8 @@ namespace Assets.Scripts
         public float RunDecceleration = 0.03f;
         public float AirRunAcceleration = 0.1f;
         public float DodgeCooldownMultiplier = 0.8f;
-        public float WallJumpCheck = 2.0f;
-        public float WallStickMaxFall = 1.6f;
-        public float WallStickAdd = 0.01f;
+        public int LedgeGrabOffset = 2;
+        public int LedgeCheckHorizontal = 2;
         public int LedgeCheckVertical = 10;
 
         //NOTE - Set to 0 for free-aim
@@ -106,6 +113,7 @@ namespace Assets.Scripts
 
             // Get input state for this player
             _inputState = InputState.GetInputStateForPlayer(0);
+            _moveAxis = new DirectionalVector2(_inputState.MoveX, _inputState.MoveY);
             float? aimDirection = getAimDirection(_inputState.AimAxis);
             _aimDirection = aimDirection.HasValue ? aimDirection.GetValueOrDefault() : (_facing == Facing.Right ? 0.0f : Mathf.PI);
 
@@ -118,6 +126,10 @@ namespace Assets.Scripts
             }
 
             // - If we're aiming, play aiming sound (?) and update lastAimDirection to AimDirection
+
+            // Check if we're set to auto-move, and if so, set our input axis x value to our autoMove value
+            if (_autoMove != 0)
+                _moveAxis.X = _autoMove;
 
             // If we're on ground, do some stuff:
             if (_onGround)
@@ -144,19 +156,19 @@ namespace Assets.Scripts
             float multiplier = Mathf.Lerp(this.SlipperyAccelerationMultiplier, 1.0f, _slipperyControl);
 
             // Turning around
-            if ((_aiming && _onGround) || (!_aiming && _slipperyControl == 1.0f && _inputState.MoveX != Math.Sign(_velocity.x)))
+            if ((_aiming && _onGround) || (!_aiming && _slipperyControl == 1.0f && _moveAxis.X != Math.Sign(_velocity.x)))
             {
                 float maxMove = (_onGround ? this.Friction : this.AirFriction) * multiplier;
-                _velocity.x = _velocity.x.Approach(0.0f, maxMove * Time.deltaTime);
+                _velocity.x = _velocity.x.Approach(0.0f, maxMove * TFPhysics.DeltaFrames);
             }
 
             // Normal movement
-            if (!_aiming && _inputState.MoveX != 0)
+            if (!_aiming && _moveAxis.X != 0)
             {
                 // Deccel if past max speed
-                if (Math.Abs(_velocity.x) > this.MaxRunSpeed && Math.Sign(_velocity.x) == _inputState.MoveX)
+                if (Math.Abs(_velocity.x) > this.MaxRunSpeed && Math.Sign(_velocity.x) == _moveAxis.X)
                 {
-                    _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * (float)_inputState.MoveX, this.RunDecceleration * Time.deltaTime);
+                    _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * _moveAxis.floatX, this.RunDecceleration * TFPhysics.DeltaFrames);
                 }
 
                 // Accelerate
@@ -167,7 +179,7 @@ namespace Assets.Scripts
                     if (_dodgeCooldown)
                         acceleration *= this.DodgeCooldownMultiplier;
 
-                    _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * (float)_inputState.MoveX, acceleration *= Time.deltaTime);
+                    _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * _moveAxis.floatX, acceleration *= TFPhysics.DeltaFrames);
                 }
             }
 
@@ -176,15 +188,16 @@ namespace Assets.Scripts
             if (!_onGround)
             {
                 // If jump button is held down use smaller number for gravity
-                float gravity = (_velocity.y <= 1.0f && _inputState.Jump && _canJumpHold) ? (this.JumpHeldGravityMultiplier * this.Gravity) : this.Gravity;
+                //TODO - Figure out where the 1.0f comes from
+                float gravity = (_inputState.Jump && _canJumpHold && (Math.Sign(_velocity.y) == TFPhysics.UpY || Mathf.Abs(_velocity.y) < 1.0f)) ? (this.JumpHeldGravityMultiplier * this.Gravity) : this.Gravity;
                 float targetFallSpeed = this.MaxFallSpeed;
                 
                 // Check if we're wall sliding
-                if (_inputState.MoveX != 0 && canWallSlide((Facing)_inputState.MoveX))
+                if (_moveAxis.X != 0 && canWallSlide((Facing)_moveAxis.X))
                 {
                     targetFallSpeed = _wallStickMax;
-                    _wallStickMax = _wallStickMax.Approach(this.WallStickMaxFall, this.WallStickAdd * Time.deltaTime);
-                    _cling = _inputState.MoveX;
+                    _wallStickMax = _wallStickMax.Approach(this.WallStickMaxFall, this.WallStickAdd * TFPhysics.DeltaFrames);
+                    _cling = _moveAxis.X;
                 }
                 else
                 {
@@ -192,14 +205,15 @@ namespace Assets.Scripts
                     if (_inputState.MoveY == TFPhysics.DownY && Math.Sign(_velocity.y) == TFPhysics.DownY)
                         targetFallSpeed = this.FastFallSpeed;
                 }
-                _velocity.y = _velocity.y.Approach(targetFallSpeed, gravity * Time.deltaTime);
+                float time = TFPhysics.DeltaFrames;
+                _velocity.y = _velocity.y.Approach(targetFallSpeed, TFPhysics.DownY * gravity * TFPhysics.DeltaFrames);
             }
 
             // Check if we need to dodge
             if (!_dodgeCooldown && _inputState.DodgeStarted)
             {
-                if (_inputState.MoveX != 0)
-                    _facing = (Facing)_inputState.MoveX;
+                if (_moveAxis.X != 0)
+                    _facing = (Facing)_moveAxis.X;
                 return PLAYER_STATE_DODGING;
             }
 
@@ -208,64 +222,52 @@ namespace Assets.Scripts
             {
                 if (!_jumpGraceTimer.completed)
                 {
-                    int num4 = this.graceLedgeDir;
-                    if (this.input.MoveX != num4)
-                    {
-                        num4 = 0;
-                    }
-                    this.Jump(true, true, false, num4);
+                    // If we're trying to jump from ledge grab, get the direction we moved away from the ledge
+                    int ledgeDir = _graceLedgeDir;
+                    if (_moveAxis.X != ledgeDir)
+                        ledgeDir = 0;
+                    jump(true, true, false, ledgeDir);
                 }
                 else
                 {
-                    if (this.CanWallJump(Facing.Left))
-                    {
-                        this.WallJump(1);
-                    }
-                    else
-                    {
-                        if (this.CanWallJump(Facing.Right))
-                        {
-                            this.WallJump(-1);
-                        }
-                        else
-                        {
-                            if (this.HasWings && !this.flapBounceCounter)
-                            {
-                                this.WingsJump();
-                            }
-                        }
-                    }
+                    if (canWallJump(Facing.Left))
+                        wallJump((int)Facing.Right);
+                    else if (canWallJump(Facing.Right))
+                        wallJump((int)Facing.Left);
                 }
             }
 
-            if (this.Aiming)
+            if (_aiming)
             {
-                if (!this.input.ShootCheck)
-                {
-                    this.ShootArrow();
-                }
+                // If we're aiming but no longer holding aim button, means shoot button was released and time to shoot
+                if (!_inputState.Shoot)
+                    shoot();
             }
-            else
+            else if (_inputState.ShootStarted)
             {
-                if (this.input.ShootPressed)
-                {
-                    this.Aiming = true;
-                }
+                _aiming = true;
             }
-            if (this.moveAxis.X != 0f)
+
+            if (_moveAxis.X != 0)
+                _facing = (Facing)_moveAxis.X;
+
+            this.actor.MoveH(_velocity.x * TFPhysics.DeltaFrames, this.onCollideH);
+            this.actor.MoveV(_velocity.y * TFPhysics.DeltaFrames, this.onCollideH);
+
+            if (!_onGround && !_aiming )
             {
-                this.Facing = (Facing)this.moveAxis.X;
-            }
-            base.MoveH(this.Speed.X * Engine.TimeMult, this.onCollideH);
-            base.MoveV(this.Speed.Y * Engine.TimeMult, this.onCollideV);
-            if (!this.OnGround && !this.Aiming && this.Speed.Y >= 0f && this.moveAxis.X != 0f && this.moveAxis.Y <= 0f && base.CollideCheck(GameTags.Solid, this.Position + Vector2.UnitX * this.moveAxis.X * 2f))
-            {
-                int direction = Math.Sign(this.moveAxis.X);
-                for (int i = 0; i < 10; i++)
+                int velocityDirY = Math.Sign(_velocity.y);
+                bool notGoingUp = velocityDirY == TFPhysics.DownY || velocityDirY == 0;
+                bool notHoldingDown = _moveAxis.Y == TFPhysics.UpY || _moveAxis.Y == 0;
+
+                if (notGoingUp && _moveAxis.X != 0 && notHoldingDown && this.boxCollider2D.CollideFirst(_moveAxis.X * this.LedgeCheckHorizontal, 0, this.actor.CollisionMask, this.actor.CollisionTag))
                 {
-                    if (this.CanGrabLedge((int)base.Y - i, direction))
+                    int direction = _moveAxis.X;
+                    for (int i = 0; i < this.LedgeCheckVertical; ++i)
                     {
-                        return this.GrabLedge((int)base.Y - i, direction);
+                        int offsetY = (int)this.position2D.y + TFPhysics.UpY * i;
+                        if (canGrabLedge(offsetY, direction))
+                            return grabLedge(offsetY, direction);
                     }
                 }
             }
@@ -343,6 +345,8 @@ namespace Assets.Scripts
          */
         private TFActor _actor;
         private FSMStateMachine _stateMachine;
+        private InputState _inputState;
+        private DirectionalVector2 _moveAxis;
         private bool _onGround;
         private float _slipperyControl;
         private GameObject _lastPlatform;
@@ -350,6 +354,7 @@ namespace Assets.Scripts
         private Facing _facing = Facing.Right;
         private Timer _jumpBufferTimer;
         private Timer _jumpGraceTimer;
+        private Timer _autoMoveTimer;
         private float _wallStickMax;
         private int _graceLedgeDir;
         private bool _aiming;
@@ -357,7 +362,7 @@ namespace Assets.Scripts
         private bool _dodgeCooldown;
         private int _cling;
         private bool _canJumpHold;
-        private InputState _inputState;
+        private int _autoMove;
 
         private float? getAimDirection(Vector2 axis)
         {
@@ -390,6 +395,132 @@ namespace Assets.Scripts
                 new Vector2(_actor.RightX - 1.0f + this.WallJumpCheck, _actor.TopY) :
                 new Vector2(_actor.LeftX - this.WallJumpCheck, _actor.TopY);
             return _actor.CollidePoint(wallJumpCollidePoint);
+        }
+
+        private void jump(bool particles, bool canSuper, bool forceSuper, int ledgeDir)
+        {
+            _jumpBufferTimer.complete();
+            _jumpGraceTimer.complete();
+
+            if (_autoMoveTimer != null)
+                _autoMoveTimer.complete();
+
+            if (forceSuper)
+            {
+                _velocity.y = TFPhysics.UpY * this.BoostedJumpPower;
+            }
+            else
+            {
+                //TODO - See if we were recently on or are on a jumpad
+                /* GameObject jumpPad = null;
+                if (canSuper)
+                {
+                    if (this.lastPlatform is JumpPad)
+                        jumpPad = (this.lastPlatform as JumpPad);
+                    else
+                        jumpPad = (base.CollideFirst(GameTags.JumpPad, this.Position + Vector2.UnitY) as JumpPad);
+                }
+                if (jumpPad)
+                {
+                    this.Speed.Y = JUMP_ONPAD;
+                    jumpPad.Launch(base.X);
+                }
+                else */
+                _velocity.y = TFPhysics.UpY * this.JumpPower;
+            }
+
+            if (ledgeDir != 0)
+            {
+                _facing = (Facing)ledgeDir;
+                _velocity.x = (float)ledgeDir * this.MaxRunSpeed;
+                _autoMove = ledgeDir;
+
+                //TODO - Is JumpGraceTime the correct thing to use here?
+                _autoMoveTimer = new Timer(this.JumpGraceTime, false, true, this.finishAutoMove);
+            }
+
+            if (_moveAxis.X != 0 && !_aiming)
+                _velocity.x += this.JumpHorizontalBoost * _moveAxis.X;
+
+            _canJumpHold = true;
+        }
+
+		private void wallJump(int dir)
+        {
+            _jumpBufferTimer.complete();
+            _jumpGraceTimer.complete();
+            
+            if (_autoMoveTimer != null)
+                _autoMoveTimer.complete();
+
+            _velocity.y = TFPhysics.UpY * this.JumpPower;
+            _velocity.x = (float)dir * 2f; //TODO - Where does the 2.0 come  from?
+            _canJumpHold = true;
+            _wallStickMax = this.WallStickStart;
+            _facing = (Facing)dir;
+            _autoMove = dir;
+            _autoMoveTimer = new Timer(this.WallJumpTime, false, true, this.finishAutoMove);
+        }
+
+        private void shoot()
+        {
+            //TODO
+        }
+
+        private bool canGrabLedge(int targetY, int direction)
+        {
+            float targetYDistance = targetY - this.position2D.y;
+
+            // Make sure place we'll grab into is empty
+            if (this.boxCollider2D.CollideFirst(0, targetYDistance + TFPhysics.DownY * this.LedgeGrabOffset, this.actor.CollisionMask, this.actor.CollisionTag))
+                return false;
+
+            // Make sure we're not close to ground
+            //TODO - Where does the 5.0 come from?
+            if (this.boxCollider2D.CollideFirst(0, 5.0f, this.actor.CollisionMask, this.actor.CollisionTag))
+                return false;
+
+            float xCheck = direction == -1 ? this.actor.LeftX - this.LedgeCheckHorizontal : this.actor.RightX + this.LedgeCheckHorizontal;
+
+            // Make sure this is actually a ledge by checking that the space above the target location is empty
+            if (this.actor.CollidePoint(new Vector2(xCheck, targetY + TFPhysics.UpY)))
+                return false;
+
+            // Make sure there is an object here to grab onto
+            return this.actor.CollidePoint(new Vector2(xCheck, targetY));
+        }
+        private string grabLedge(int targetY, int direction)
+        {
+            _facing = (Facing)direction;
+            _velocity.y = 0.0f;
+
+            Vector3 oldPosition = this.transform.position;
+            this.transform.position = new Vector3(oldPosition.x, targetY + TFPhysics.DownY * this.LedgeGrabOffset, oldPosition.z);
+
+            while (!this.boxCollider2D.CollideFirst(direction, 0, this.actor.CollisionMask, this.actor.CollisionTag))
+            {
+                oldPosition = this.transform.position;
+                this.transform.position = new Vector3(oldPosition.x + direction, oldPosition.y, oldPosition.z);
+            }
+
+            return PLAYER_STATE_LEDGE_GRAB;
+        }
+
+        private void onCollideH(GameObject solid)
+        {
+            _velocity.x = 0.0f;
+        }
+
+        private void onCollideV(GameObject solid)
+        {
+            if (Math.Sign(_velocity.y) == TFPhysics.DownY)
+                _velocity.x = Mathf.Lerp(_velocity.x, 0.0f, this.LandingHorizontalMultiplier * (_velocity.y / this.MaxFallSpeed));
+            _velocity.y = 0.0f;
+        }
+
+        private void finishAutoMove()
+        {
+            _autoMove = 0;
         }
 
         /**

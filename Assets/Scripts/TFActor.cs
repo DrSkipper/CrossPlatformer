@@ -30,6 +30,12 @@ namespace Assets.Scripts
 
         public delegate void ActorCollisionHandler(GameObject collidedObject);
 
+        public void Awake()
+        {
+            if (this.CollisionTag == "")
+                this.CollisionTag = null;
+        }
+
         public virtual void MoveExactH(int move, ActorCollisionHandler onCollide = null)
         {
 			int unitDir = Math.Sign(move);
@@ -109,7 +115,7 @@ namespace Assets.Scripts
         public bool MoveV(float moveV, ActorCollisionHandler onCollide = null)
         {
             _positionModifier.y += moveV;
-            int moveAmount = (int)Math.Round(_positionModifier.x);
+            int moveAmount = (int)Math.Round(_positionModifier.y);
             if (moveAmount != 0)
             {
                 int unitDir = Math.Sign(moveAmount);
