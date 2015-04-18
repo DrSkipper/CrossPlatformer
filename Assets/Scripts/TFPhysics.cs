@@ -14,7 +14,7 @@ namespace Assets.Scripts
         public static float DeltaFrames
         {
             //TODO - Figure this stuff out
-            get { return 2.0f; }
+            get { return 1.0f; }
         }
     }
 }

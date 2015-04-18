@@ -174,7 +174,7 @@ namespace Assets.Scripts
             if (!_aiming && _moveAxis.X != 0)
             {
                 // Deccel if past max speed
-                if (Math.Abs(_velocity.x) > this.MaxRunSpeed && Math.Sign(_velocity.x) == _moveAxis.X)
+                if (Mathf.Abs(_velocity.x) > this.MaxRunSpeed && Math.Sign(_velocity.x) == _moveAxis.X)
                 {
                     _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * _moveAxis.floatX, this.RunDecceleration * TFPhysics.DeltaFrames);
                 }
@@ -260,7 +260,7 @@ namespace Assets.Scripts
                 _facing = (Facing)_moveAxis.X;
 
             this.actor.MoveH(_velocity.x * TFPhysics.DeltaFrames, this.onCollideH);
-            this.actor.MoveV(_velocity.y * TFPhysics.DeltaFrames, this.onCollideH);
+            this.actor.MoveV(_velocity.y * TFPhysics.DeltaFrames, this.onCollideV);
 
             if (!_onGround && !_aiming )
             {
@@ -285,22 +285,22 @@ namespace Assets.Scripts
 
         public string updateDodging()
         {
-            return PLAYER_STATE_DODGING;
+            return PLAYER_STATE_NORMAL;
         }
 
         public string updateDucking()
         {
-            return PLAYER_STATE_DUCKING;
+            return PLAYER_STATE_NORMAL;
         }
 
         public string updateLedgeGrab()
         {
-            return PLAYER_STATE_LEDGE_GRAB;
+            return PLAYER_STATE_NORMAL;
         }
 
         public string updateDying()
         {
-            return PLAYER_STATE_DYING;
+            return PLAYER_STATE_NORMAL;
         }
 
         public void enterDodge()
