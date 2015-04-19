@@ -472,6 +472,7 @@ namespace Assets.Scripts
 
         private void shoot()
         {
+            _aiming = false;
             //TODO
         }
 
