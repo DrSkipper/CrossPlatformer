@@ -1,0 +1,23 @@
+
+Platformer Character Components:
+
+Base
+- Left/Right movement,
+- Option for fast-fall
+- Option for ducking
+- Option to hold button for faster speed (Spelunky-style)?
+
+Jumping
+- Option for wall jump
+
+LedgeGrab
+
+Dashing
+- Option for dash wall jump
+- Option for sliding
+
+Aiming
+- Parameter for directions
+- Can choose same or different axis as for movement
+
+Melee/Other Weapons
