@@ -8,6 +8,7 @@ public class Timer
 	public bool paused;
 	public bool loops;
 	public bool completed { get; private set; }
+    public float timeRemaining { get { return _timeRemaining; } }
 
 	public Timer(float duration, bool loops = false, bool startsImmediately = true, TimerCallback callback = null)
 	{

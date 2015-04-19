@@ -51,11 +51,22 @@ namespace Assets.Scripts
         public float RunAcceleration = 0.15f;
         public float RunDecceleration = 0.03f;
         public float AirRunAcceleration = 0.1f;
-        public float DodgeCooldownMultiplier = 0.8f;
         public int LedgeGrabOffset = 2;
         public int LedgeCheckHorizontal = 2;
         public int LedgeCheckVertical = 10;
         public int LedgeReleaseGraceFrames = 12;
+        public int DodgeFrames = 20;
+        public int DodgeCooldownFrames = 25;
+        public int DodgeJumpGraceFrames = 12;
+        public int DodgeWalljumpValidFrames = 12;
+        public int DodgeSlideJumpAutomoveFrames = 16;
+        public float DodgeCooldownAccelMultiplier = 0.8f;
+        public float DodgeSpeed = 5.5f;
+        public float DodgeSlideSpeedMultiplier = 1.4f;
+        public float DodgeJumpMaxSpeed = 1.8f;
+        public float DodgeDeccelMultiplier = 0.85f;
+        public float DodgeSlideJumpMinSpeedReq = 1.75f;
+        public float DodgeSlideJumpSpeed = 2.8f;
 
         //NOTE - Set to 0 for free-aim
         [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
@@ -87,6 +98,9 @@ namespace Assets.Scripts
 
             _jumpGraceTimer = new Timer(this.JumpGraceFrames);
             _jumpGraceTimer.complete();
+
+            _dodgeEndTimer = new Timer(this.DodgeFrames);
+            _dodgeEndTimer.complete();
 
             _slipperyControl = 1.0f;
         }
@@ -136,11 +150,16 @@ namespace Assets.Scripts
             if (_autoMove != 0)
                 _moveAxis.X = _autoMove;
 
+            if (_dodgeCooldownTimer != null)
+                _dodgeCooldownTimer.update(TFPhysics.DeltaFrames);
+
             // If we're on ground, do some stuff:
             if (_onGround)
             {
-                _jumpGraceTimer.reset(this.JumpGraceFrames);
-                _jumpGraceTimer.start();
+                if (_jumpGraceTimer.completed || _jumpGraceTimer.timeRemaining < this.JumpGraceFrames)
+                    _jumpGraceTimer.reset(this.JumpGraceFrames);
+                if (_jumpGraceTimer.paused)
+                    _jumpGraceTimer.start();
                 _wallStickMax = this.WallStickStart;
                 _graceLedgeDir = 0;
             }
@@ -186,7 +205,7 @@ namespace Assets.Scripts
                     float acceleration = _onGround ? this.RunAcceleration : this.AirRunAcceleration;
                     acceleration *= multiplier;
                     if (_dodgeCooldown)
-                        acceleration *= this.DodgeCooldownMultiplier;
+                        acceleration *= this.DodgeCooldownAccelMultiplier;
 
                     _velocity.x = _velocity.x.Approach(this.MaxRunSpeed * _moveAxis.floatX, acceleration *= TFPhysics.DeltaFrames);
                 }
@@ -286,6 +305,76 @@ namespace Assets.Scripts
 
         public string updateDodging()
         {
+            _dodgeEndTimer.update(TFPhysics.DeltaFrames);
+
+            this.actor.Move(_velocity * TFPhysics.DeltaFrames, this.onDodgeCollideH, this.onDodgeCollideV);
+            _velocity *= Mathf.Pow(this.DodgeDeccelMultiplier, TFPhysics.DeltaFrames);
+
+            if ((_inputState.JumpStarted || !_jumpBufferTimer.completed) && (!_dodgeSliding || canStand()))
+            {
+                if (canDodgeWallJump(Facing.Left))
+                {
+                    if (!dodgeWallJump((int)Facing.Left))
+                        return PLAYER_STATE_NORMAL;
+                }
+                else
+                {
+                    if (canDodgeWallJump(Facing.Right))
+                    {
+                        if (!dodgeWallJump((int)Facing.Right))
+                            return PLAYER_STATE_NORMAL;
+                    }
+                    else
+                    {
+                        if (!_jumpGraceTimer.completed)
+                        {
+                            if (_dodgeSliding)
+                            {
+                                //this.UseNormalHitbox();
+                                _dodgeSliding = false;
+                                _autoMove = Math.Sign(_velocity.x);
+                                _autoMoveTimer = new Timer(this.DodgeSlideJumpAutomoveFrames, false, true, finishAutoMove);
+
+                                if (Mathf.Abs(_velocity.x) >= this.DodgeSlideJumpMinSpeedReq)
+                                {
+                                    _velocity.x = Mathf.Sign(_velocity.x) * this.DodgeSlideJumpSpeed;
+                                }
+                                jump(true, true, false, 0);
+                                return PLAYER_STATE_NORMAL;
+                            }
+                            _velocity.x = Mathf.Clamp(_velocity.x, -this.DodgeJumpMaxSpeed, this.DodgeJumpMaxSpeed);
+                            jump(true, true, false, 0);
+                            return PLAYER_STATE_NORMAL;
+                        }
+                    }
+                }
+            }
+
+            if (_dodgeSliding && _jumpGraceTimer.completed && canStand())
+            {
+                //this.UseNormalHitbox();
+                _dodgeSliding = false;
+            }
+
+            if (_inputState.DodgeStarted)
+                return getDodgeExitState();
+
+            if (_dodgeEndTimer != null && !_dodgeEndTimer.completed)
+            {
+                _dodgeEndTimer.update(TFPhysics.DeltaFrames);
+                return PLAYER_STATE_DODGING;
+            }
+
+            return getDodgeExitState();
+        }
+
+        private string getDodgeExitState()
+        {
+            if (_dodgeSliding && (inputDucking || !canStand()))
+            {
+                _dodgeSliding = false;
+                return PLAYER_STATE_DUCKING;
+            }
             return PLAYER_STATE_NORMAL;
         }
 
@@ -335,12 +424,47 @@ namespace Assets.Scripts
 
         public void enterDodge()
         {
+            if (!_dodgeSliding && _onGround && Math.Sign(_inputState.AimAxis.y) == TFPhysics.DownY)
+            {
+                _dodgeSliding = true;
+                //this.UseDuckingHitbox();
+            }
 
+            _dodgeEndTimer.reset();
+            _dodgeEndTimer.start();
+
+            if (_onGround)
+            {
+                _jumpGraceTimer.reset(this.DodgeJumpGraceFrames);
+                _jumpBufferTimer.start();
+            }
+
+            if (_inputState.AimAxis == Vector2.zero || _stateMachine.PreviousState == PLAYER_STATE_DUCKING)
+            {
+                _velocity.x = (float)_facing * this.DodgeSpeed;
+                _velocity.y = 0.0f;
+            }
+            else
+            {
+                _velocity = _inputState.AimAxis.EightWayNormal() * this.DodgeSpeed;
+            }
+
+            if (_dodgeSliding)
+                _velocity *= this.DodgeSlideSpeedMultiplier;
+
+            _canJumpHold = false;
+            _dodgeCooldown = true;
+            _aiming = false;
         }
 
         public void exitDodge()
         {
+            //if (_dodgeSliding && this.CanUnduck())
+            //    this.UseNormalHitbox();
 
+            _dodgeSliding = false;
+            _dodgeEndTimer.complete();
+            _dodgeCooldownTimer = new Timer(this.DodgeFrames, false, true, finishDodge);
         }
 
         public void enterDuck()
@@ -394,6 +518,8 @@ namespace Assets.Scripts
         private Timer _jumpBufferTimer;
         private Timer _jumpGraceTimer;
         private Timer _autoMoveTimer;
+        private Timer _dodgeEndTimer;
+        private Timer _dodgeCooldownTimer;
         private float _wallStickMax;
         private int _graceLedgeDir;
         private bool _aiming;
@@ -402,6 +528,9 @@ namespace Assets.Scripts
         private int _cling;
         private bool _canJumpHold;
         private int _autoMove;
+        private bool _dodgeSliding;
+
+        private bool inputDucking { get { return _onGround && _moveAxis.X == 0 && _moveAxis.Y == TFPhysics.DownY; } }
 
         private float? getAimDirection(Vector2 axis)
         {
@@ -414,6 +543,15 @@ namespace Assets.Scripts
                 return new float?(Mathf.Round((axis.Angle() / increment)) * increment);
             }
             return new float?(axis.Angle());
+        }
+
+        private bool canStand()
+        {
+            //TODO
+            /*base.Collider = this.normalHitbox;
+            bool result = !base.CollideCheck(GameTags.Solid);
+            base.Collider = this.duckingHitbox;*/
+            return true;
         }
 
         private bool canWallSlide(Facing direction)
@@ -434,6 +572,12 @@ namespace Assets.Scripts
                 new Vector2(_actor.RightX - 1.0f + this.WallJumpCheck, _actor.TopY) :
                 new Vector2(_actor.LeftX - this.WallJumpCheck, _actor.TopY);
             return _actor.CollidePoint(wallJumpCollidePoint);
+        }
+
+        private bool canDodgeWallJump(Facing direction)
+        {
+            return direction == Facing.Right ? this.actor.CollidePoint(new Vector2(this.actor.RightX - 1f + this.WallJumpCheck, this.actor.TopY)) :
+                                               this.actor.CollidePoint(new Vector2(this.actor.LeftX - this.WallJumpCheck, this.actor.TopY));
         }
 
         private void jump(bool particles, bool canSuper, bool forceSuper, int ledgeDir)
@@ -501,6 +645,25 @@ namespace Assets.Scripts
             _autoMoveTimer = new Timer(this.WallJumpTime, false, true, this.finishAutoMove);
         }
 
+        private bool dodgeWallJump(int dir)
+        {
+            if (_dodgeEndTimer.timeRemaining < this.DodgeWalljumpValidFrames)
+            {
+                wallJump(dir);
+                return false;
+            }
+
+            _jumpBufferTimer.complete();
+            _jumpGraceTimer.complete();
+
+            _velocity = MathExtensions.AngleToVector(-MathExtensions.PI_4 * (float)dir + (float)(dir + 1) * MathExtensions.PI_2, this.DodgeSpeed);
+            _dodgeEndTimer.reset(this.DodgeFrames);
+            _wallStickMax = this.WallStickStart;
+            _facing = (Facing)dir;
+            _canJumpHold = true;
+            return true;
+        }
+
         private void shoot()
         {
             _aiming = false;
@@ -558,10 +721,71 @@ namespace Assets.Scripts
             _velocity.y = 0.0f;
         }
 
+        private void onDodgeCollideH(GameObject solid)
+        {
+            // Transition from dodging to sliding if there is room to slide
+            if (_onGround && !_dodgeSliding)
+            {
+                //this.UseDuckingHitbox();
+                if (!this.boxCollider2D.CollideFirst(Mathf.Sign(_velocity.x), 0.0f, this.actor.CollisionMask, this.actor.CollisionTag))
+                {
+                    Vector3 oldPosition = this.transform.position;
+                    this.transform.position = new Vector3(oldPosition.x + Mathf.Sign(_velocity.x), oldPosition.y, oldPosition.z);
+                    _velocity *= this.DodgeSlideSpeedMultiplier;
+                    _dodgeSliding = true;
+                    return;
+                }
+                //this.UseNormalHitbox();
+            }
+
+            //TODO - Where do these friggin' numbers come from
+            // If there is space slightly above of below the collision, try to move around it
+            if (!this.boxCollider2D.CollideFirst(Mathf.Sign(_velocity.x), -5f, this.actor.CollisionMask, this.actor.CollisionTag))
+                this.actor.MoveV(-2f * TFPhysics.DeltaFrames, null);
+            else if (!this.boxCollider2D.CollideFirst(Mathf.Sign(_velocity.x), 5f, this.actor.CollisionMask, this.actor.CollisionTag))
+                this.actor.MoveV(2f * TFPhysics.DeltaFrames, null);
+
+            // Otherwise, if we were dodging in a vertical direction at all, convert entirely to vertical
+            else if (Mathf.Abs(_velocity.y) > 0.02f)
+            {
+                _velocity.y = _velocity.magnitude * Mathf.Sign(_velocity.y);
+                _velocity.x = 0.0f;
+            }
+        }
+
+        private void onDodgeCollideV(GameObject solid)
+        {
+            //TODO - Where do these friggin' numbers come from
+            if (Mathf.Abs(_velocity.x) < 0.02f)
+            {
+                //TODO - Why check at 5 *and* 3?
+                // If we're moving completely vertically, see if we can do a slight sidestep to avoid the obstacle
+                float yDir = Mathf.Sign(_velocity.y);
+                if (!this.boxCollider2D.CollideFirst(-5f, yDir, this.actor.CollisionMask, this.actor.CollisionTag) ||
+                    !this.boxCollider2D.CollideFirst(-3f, yDir, this.actor.CollisionMask, this.actor.CollisionTag))
+                    this.actor.MoveH(-2f * TFPhysics.DeltaFrames, null);
+                else if (!this.boxCollider2D.CollideFirst(5f, yDir, this.actor.CollisionMask, this.actor.CollisionTag) ||
+                         !this.boxCollider2D.CollideFirst(3f, yDir, this.actor.CollisionMask, this.actor.CollisionTag))
+                    this.actor.MoveH(2f * TFPhysics.DeltaFrames, null);
+            }
+            else
+            {
+                // If we have some horizontal movement, transition to completely horizontal dodge
+                _velocity.x = _velocity.magnitude * Mathf.Sign(_velocity.x);
+                _velocity.y = 0f;
+            }
+        }
+
         private void finishAutoMove()
         {
             _autoMove = 0;
             _autoMoveTimer = null;
+        }
+
+        private void finishDodge()
+        {
+            _dodgeCooldown = false;
+            _dodgeCooldownTimer = null;
         }
 
         /**
