@@ -28,6 +28,12 @@ public class Timer
         this.completed = false;
     }
 
+    public void reset(float duration)
+    {
+        _duration = duration;
+        this.reset();
+    }
+
     public void complete()
     {
         if (this.callback != null)

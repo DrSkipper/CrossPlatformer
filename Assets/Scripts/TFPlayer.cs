@@ -35,8 +35,8 @@ namespace Assets.Scripts
         public float BoostedJumpPower = 4.3f;
         public float JumpHorizontalBoost = 0.5f;
         public float JumpHeldGravityMultiplier = 0.5f;
-        public float JumpBufferTime = 6.0f;
-        public float JumpGraceTime = 6.0f;
+        public int JumpBufferFrames = 6;
+        public int JumpGraceFrames = 6;
         public float LandingHorizontalMultiplier = 0.6f;
         public float WallStickStart = 0.5f;
         public int WallJumpCheck = 2;
@@ -55,6 +55,7 @@ namespace Assets.Scripts
         public int LedgeGrabOffset = 2;
         public int LedgeCheckHorizontal = 2;
         public int LedgeCheckVertical = 10;
+        public int LedgeReleaseGraceFrames = 12;
 
         //NOTE - Set to 0 for free-aim
         [Range(0, MAX_AIM_SNAP_DIRECTIONS)]
@@ -81,10 +82,10 @@ namespace Assets.Scripts
             _stateMachine.AddState(PLAYER_STATE_FROZEN, null, null, this.exitFrozen);
             _stateMachine.BeginWithInitialState(PLAYER_STATE_NORMAL);
 
-            _jumpBufferTimer = new Timer(JumpBufferTime);
+            _jumpBufferTimer = new Timer(this.JumpBufferFrames);
             _jumpBufferTimer.complete();
 
-            _jumpGraceTimer = new Timer(JumpGraceTime);
+            _jumpGraceTimer = new Timer(this.JumpGraceFrames);
             _jumpGraceTimer.complete();
 
             _slipperyControl = 1.0f;
@@ -138,7 +139,7 @@ namespace Assets.Scripts
             // If we're on ground, do some stuff:
             if (_onGround)
             {
-                _jumpGraceTimer.reset();
+                _jumpGraceTimer.reset(this.JumpGraceFrames);
                 _jumpGraceTimer.start();
                 _wallStickMax = this.WallStickStart;
                 _graceLedgeDir = 0;
@@ -295,7 +296,36 @@ namespace Assets.Scripts
 
         public string updateLedgeGrab()
         {
-            return PLAYER_STATE_NORMAL;
+			if (!_dodgeCooldown && _inputState.DodgeStarted)
+				return PLAYER_STATE_DODGING;
+
+			if (_inputState.ShootStarted)
+			{
+				_aiming = true;
+				return PLAYER_STATE_NORMAL;
+			}
+
+			if (_moveAxis.Y == TFPhysics.DownY || _moveAxis.X != (int)_facing)
+			{
+				_graceLedgeDir = -(int)_facing;
+                _jumpGraceTimer.reset(this.LedgeReleaseGraceFrames);
+                _jumpGraceTimer.start();
+				return PLAYER_STATE_NORMAL;
+			}
+
+			if (_inputState.JumpStarted)
+			{
+				if (_moveAxis.X == -(int)_facing)
+					jump(true, false, false, -(int)_facing);
+                else if (_moveAxis.Y != TFPhysics.DownY)
+					jump(false, false, false, 0);
+                return PLAYER_STATE_NORMAL;
+			}
+
+            if (!canGrabLedge((int)this.position2D.y + TFPhysics.UpY * this.LedgeGrabOffset, (int)_facing))
+                return PLAYER_STATE_NORMAL;
+
+			return PLAYER_STATE_LEDGE_GRAB;
         }
 
         public string updateDying()
@@ -325,12 +355,13 @@ namespace Assets.Scripts
 
         public void enterLedgeGrab()
         {
-
+            _aiming = false;
+            _velocity = Vector2.zero;
+            _lastPlatform = null;
         }
 
         public void exitLedgeGrab()
         {
-
         }
 
         public void enterDying()
@@ -444,7 +475,7 @@ namespace Assets.Scripts
                 _autoMove = ledgeDir;
 
                 //TODO - Is JumpGraceTime the correct thing to use here?
-                _autoMoveTimer = new Timer(this.JumpGraceTime, false, true, this.finishAutoMove);
+                _autoMoveTimer = new Timer(this.JumpGraceFrames, false, true, this.finishAutoMove);
             }
 
             if (_moveAxis.X != 0 && !_aiming)
