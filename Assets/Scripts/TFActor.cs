@@ -41,7 +41,7 @@ namespace Assets.Scripts
 			int unitDir = Math.Sign(move);
 			while (move != 0)
 			{
-                GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0.0f, CollisionMask, CollisionTag);
+                GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0, CollisionMask, CollisionTag);
 
                 if (collidedObject)
                 {
@@ -65,7 +65,7 @@ namespace Assets.Scripts
             int unitDir = Math.Sign(move);
             while (move != 0)
             {
-                GameObject collidedObject = this.boxCollider2D.CollideFirst(0.0f, unitDir, CollisionMask, CollisionTag);
+                GameObject collidedObject = this.boxCollider2D.CollideFirst(0, unitDir, CollisionMask, CollisionTag);
 
                 if (collidedObject)
                 {
@@ -94,7 +94,7 @@ namespace Assets.Scripts
                 _positionModifier.x -= moveAmount;
                 while (moveAmount != 0)
                 {
-                    GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0.0f, CollisionMask, CollisionTag);
+                    GameObject collidedObject = this.boxCollider2D.CollideFirst(unitDir, 0, CollisionMask, CollisionTag);
 
                     if (collidedObject)
                     {
@@ -122,7 +122,7 @@ namespace Assets.Scripts
                 _positionModifier.y -= moveAmount;
                 while (moveAmount != 0)
                 {
-                    GameObject collidedObject = this.boxCollider2D.CollideFirst(0.0f, unitDir, CollisionMask, CollisionTag);
+                    GameObject collidedObject = this.boxCollider2D.CollideFirst(0, unitDir, CollisionMask, CollisionTag);
 
                     if (collidedObject)
                     {
@@ -137,6 +137,7 @@ namespace Assets.Scripts
                     moveAmount -= unitDir;
                 }
             }
+
             return false;
         }
 
@@ -205,7 +206,7 @@ namespace Assets.Scripts
         public virtual bool IsRiding(GameObject solid) // Solid solid
         {
             // Check if we are standing on this object (if so we can "ride" it - i.e. use its velocity as our base)
-            return this.boxCollider2D.CollideCheck(solid, 0.0f, TFPhysics.DownY);
+            return this.boxCollider2D.CollideCheck(solid, 0, TFPhysics.DownY);
         }
 
         public GameObject CollidePoint(Vector2 point)

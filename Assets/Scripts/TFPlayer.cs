@@ -111,14 +111,14 @@ namespace Assets.Scripts
 
             // Send collision ray(s) from our position in UnitY direction (down) to detect OnGround
             // If so, store hit entity as lastPlatform. Check if this platform is slippery or hot coals and store bools for those as well.
-            GameObject groundObject = this.boxCollider2D.CollideFirst(0.0f, TFPhysics.DownY, this.actor.CollisionMask, this.actor.CollisionTag);
+            GameObject groundObject = this.boxCollider2D.CollideFirst(0, TFPhysics.DownY, this.actor.CollisionMask, this.actor.CollisionTag);
             _onGround = groundObject != null;
 
             if (_onGround)
             {
                 _slipperyControl = (this.SlipperyTag != null &&
                     (this.SlipperyTag == this.actor.CollisionTag ||
-                    this.boxCollider2D.CollideFirst(0.0f, TFPhysics.DownY, this.actor.CollisionMask, this.SlipperyTag))) ? 0.0f : 1.0f;
+                    this.boxCollider2D.CollideFirst(0, TFPhysics.DownY, this.actor.CollisionMask, this.SlipperyTag))) ? 0.0f : 1.0f;
 
                 _lastPlatform = groundObject;
             }
@@ -282,6 +282,7 @@ namespace Assets.Scripts
             this.actor.MoveH(_velocity.x * TFPhysics.DeltaFrames, this.onCollideH);
             this.actor.MoveV(_velocity.y * TFPhysics.DeltaFrames, this.onCollideV);
 
+            // Check for ledge grab
             if (!_onGround && !_aiming )
             {
                 int velocityDirY = Math.Sign(_velocity.y);
@@ -563,7 +564,7 @@ namespace Assets.Scripts
         {
             //TODO - is LedgeCheckVertical the right thing to use here?
             // Make sure we are far enough off the ground
-            if (this.boxCollider2D.CollideFirst(0.0f, (float)TFPhysics.DownY * (this.LedgeCheckVertical / 2)))
+            if (this.boxCollider2D.CollideFirst(0, TFPhysics.DownY * (this.LedgeCheckVertical / 2)))
                 return false;
 
             //TODO - is the -1.0f necessary?
@@ -672,7 +673,7 @@ namespace Assets.Scripts
 
         private bool canGrabLedge(int targetY, int direction)
         {
-            float targetYDistance = targetY - this.position2D.y;
+            int targetYDistance = Mathf.RoundToInt(targetY - this.position2D.y);
 
             // Make sure place we'll grab into is empty
             if (this.boxCollider2D.CollideFirst(0, targetYDistance + TFPhysics.DownY * this.LedgeGrabOffset, this.actor.CollisionMask, this.actor.CollisionTag))
@@ -680,7 +681,7 @@ namespace Assets.Scripts
 
             // Make sure we're not close to ground
             //TODO - Where does the 5.0 come from?
-            if (this.boxCollider2D.CollideFirst(0, 5.0f, this.actor.CollisionMask, this.actor.CollisionTag))
+            if (this.boxCollider2D.CollideFirst(0, 5, this.actor.CollisionMask, this.actor.CollisionTag))
                 return false;
 
             float xCheck = direction == -1 ? this.actor.LeftX - this.LedgeCheckHorizontal : this.actor.RightX + this.LedgeCheckHorizontal;
@@ -727,7 +728,7 @@ namespace Assets.Scripts
             if (_onGround && !_dodgeSliding)
             {
                 //this.UseDuckingHitbox();
-                if (!this.boxCollider2D.CollideFirst(Mathf.Sign(_velocity.x), 0.0f, this.actor.CollisionMask, this.actor.CollisionTag))
+                if (!this.boxCollider2D.CollideFirst(Math.Sign(_velocity.x), 0, this.actor.CollisionMask, this.actor.CollisionTag))
                 {
                     Vector3 oldPosition = this.transform.position;
                     this.transform.position = new Vector3(oldPosition.x + Mathf.Sign(_velocity.x), oldPosition.y, oldPosition.z);
@@ -740,9 +741,9 @@ namespace Assets.Scripts
 
             //TODO - Where do these friggin' numbers come from
             // If there is space slightly above of below the collision, try to move around it
-            if (!this.boxCollider2D.CollideFirst(Mathf.Sign(_velocity.x), -5f, this.actor.CollisionMask, this.actor.CollisionTag))
+            if (!this.boxCollider2D.CollideFirst(Math.Sign(_velocity.x), -5, this.actor.CollisionMask, this.actor.CollisionTag))
                 this.actor.MoveV(-2f * TFPhysics.DeltaFrames, null);
-            else if (!this.boxCollider2D.CollideFirst(Mathf.Sign(_velocity.x), 5f, this.actor.CollisionMask, this.actor.CollisionTag))
+            else if (!this.boxCollider2D.CollideFirst(Math.Sign(_velocity.x), 5, this.actor.CollisionMask, this.actor.CollisionTag))
                 this.actor.MoveV(2f * TFPhysics.DeltaFrames, null);
 
             // Otherwise, if we were dodging in a vertical direction at all, convert entirely to vertical
@@ -760,12 +761,12 @@ namespace Assets.Scripts
             {
                 //TODO - Why check at 5 *and* 3?
                 // If we're moving completely vertically, see if we can do a slight sidestep to avoid the obstacle
-                float yDir = Mathf.Sign(_velocity.y);
-                if (!this.boxCollider2D.CollideFirst(-5f, yDir, this.actor.CollisionMask, this.actor.CollisionTag) ||
-                    !this.boxCollider2D.CollideFirst(-3f, yDir, this.actor.CollisionMask, this.actor.CollisionTag))
+                int yDir = Math.Sign(_velocity.y);
+                if (!this.boxCollider2D.CollideFirst(-5, yDir, this.actor.CollisionMask, this.actor.CollisionTag) ||
+                    !this.boxCollider2D.CollideFirst(-3, yDir, this.actor.CollisionMask, this.actor.CollisionTag))
                     this.actor.MoveH(-2f * TFPhysics.DeltaFrames, null);
-                else if (!this.boxCollider2D.CollideFirst(5f, yDir, this.actor.CollisionMask, this.actor.CollisionTag) ||
-                         !this.boxCollider2D.CollideFirst(3f, yDir, this.actor.CollisionMask, this.actor.CollisionTag))
+                else if (!this.boxCollider2D.CollideFirst(5, yDir, this.actor.CollisionMask, this.actor.CollisionTag) ||
+                         !this.boxCollider2D.CollideFirst(3, yDir, this.actor.CollisionMask, this.actor.CollisionTag))
                     this.actor.MoveH(2f * TFPhysics.DeltaFrames, null);
             }
             else
