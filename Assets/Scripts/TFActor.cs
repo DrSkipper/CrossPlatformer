@@ -87,7 +87,7 @@ namespace Assets.Scripts
         public bool MoveH(float moveH, ActorCollisionHandler onCollide = null)
         {
             _positionModifier.x += moveH;
-            int moveAmount = (int)Math.Round(_positionModifier.x);
+            int moveAmount = (int)Mathf.Round(_positionModifier.x);
             if (moveAmount != 0)
             {
                 int unitDir = Math.Sign(moveAmount);
@@ -115,7 +115,7 @@ namespace Assets.Scripts
         public bool MoveV(float moveV, ActorCollisionHandler onCollide = null)
         {
             _positionModifier.y += moveV;
-            int moveAmount = (int)Math.Round(_positionModifier.y);
+            int moveAmount = (int)Mathf.Round(_positionModifier.y);
             if (moveAmount != 0)
             {
                 int unitDir = Math.Sign(moveAmount);

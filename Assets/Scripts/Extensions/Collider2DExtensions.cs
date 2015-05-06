@@ -22,17 +22,23 @@ namespace Assets.Scripts.Extensions
         public static GameObject CollideFirst(this BoxCollider2D self, float offsetX = 0.0f, float offsetY = 0.0f, int layerMask = Physics2D.DefaultRaycastLayers, string objectTag = null)
         {
             Bounds bounds = self.bounds;
-            Vector2 corner1 = new Vector2(bounds.min.x + offsetX, bounds.min.y + offsetY);
-            Vector2 corner2 = new Vector2(bounds.max.x + offsetX, bounds.max.y + offsetY);
+            float boundsMinX = bounds.min.x - bounds.size.x - Mathf.Abs(offsetX);
+            float boundsMinY = bounds.min.y - bounds.size.y - Mathf.Abs(offsetY);
+            float boundsMaxX = bounds.max.x + bounds.size.x + Mathf.Abs(offsetX);
+            float boundsMaxY = bounds.max.y + bounds.size.y + Mathf.Abs(offsetY);
+            Vector2 corner1 = new Vector2(boundsMinX, boundsMinY);
+            Vector2 corner2 = new Vector2(boundsMaxX, boundsMaxY);
+            
+            // Overlap an area significantly larger than our bounding box so we can directly compare bounds with collision candidates
+            // (Relying purely on OverlapAreaAll for collision seems to be inconsistent at times)
             Collider2D[] colliders = Physics2D.OverlapAreaAll(corner1, corner2, layerMask);
+            Bounds offsetBounds = bounds;
+            offsetBounds.center = new Vector3(offsetBounds.center.x + offsetX, offsetBounds.center.y + offsetY, offsetBounds.center.z);
 
             foreach (Collider2D collider in colliders)
             {
-                if (collider != self)
-                {
-                    if (collider != self && (objectTag == null || collider.tag == objectTag))
-                        return collider.gameObject;
-                }
+                if (collider != self && (objectTag == null || collider.tag == objectTag) && offsetBounds.Intersects(collider.bounds))
+                    return collider.gameObject;
             }
 
             return null;
