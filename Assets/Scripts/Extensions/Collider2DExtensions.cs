@@ -24,8 +24,8 @@ namespace Assets.Scripts.Extensions
             // Overlap an area significantly larger than our bounding box so we can directly compare bounds with collision candidates
             // (Relying purely on OverlapAreaAll for collision seems to be inconsistent at times)
             Bounds bounds = self.bounds;
-            Vector2 corner1 = new Vector2(bounds.min.x - bounds.size.x - Mathf.Abs(offsetX), bounds.min.y - bounds.size.y - Mathf.Abs(offsetY));
-            Vector2 corner2 = new Vector2(bounds.max.x + bounds.size.x + Mathf.Abs(offsetX), bounds.max.y + bounds.size.y + Mathf.Abs(offsetY));
+            Vector2 corner1 = new Vector2(bounds.min.x - bounds.size.x + offsetX, bounds.min.y - bounds.size.y + offsetY);
+            Vector2 corner2 = new Vector2(bounds.max.x + bounds.size.x + offsetX, bounds.max.y + bounds.size.y + offsetY);
             Collider2D[] colliders = Physics2D.OverlapAreaAll(corner1, corner2, layerMask);
 
             // If there is only one collider, it is our collider, so there is nothing to collide with
