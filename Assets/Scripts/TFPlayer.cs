@@ -283,7 +283,7 @@ namespace Assets.Scripts
             this.actor.MoveV(_velocity.y * TFPhysics.DeltaFrames, this.onCollideV);
 
             // Check for ledge grab
-            if (!_onGround && !_aiming )
+            if (!_onGround && !_aiming)
             {
                 int velocityDirY = Math.Sign(_velocity.y);
                 bool notGoingUp = velocityDirY == TFPhysics.DownY || velocityDirY == 0;
@@ -699,7 +699,7 @@ namespace Assets.Scripts
             _velocity.y = 0.0f;
 
             Vector3 oldPosition = this.transform.position;
-            this.transform.position = new Vector3(oldPosition.x, targetY + TFPhysics.DownY * this.LedgeGrabOffset, oldPosition.z);
+            this.transform.position = new Vector3(Mathf.Round(oldPosition.x), targetY + TFPhysics.DownY * this.LedgeGrabOffset, oldPosition.z);
 
             while (!this.boxCollider2D.CollideFirst(direction, 0, this.actor.CollisionMask, this.actor.CollisionTag))
             {

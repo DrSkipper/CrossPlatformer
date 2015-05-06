@@ -211,6 +211,31 @@ namespace Assets.Scripts
 
         public GameObject CollidePoint(Vector2 point)
         {
+            //Vector2 corner1 = new Vector2(point.x - 25, point.y - 25);
+            //Vector2 corner2 = new Vector2(point.x + 25, point.y + 25);
+            //Collider2D[] colliders = Physics2D.OverlapAreaAll(corner1, corner2, this.CollisionMask);
+
+            //if (colliders.Length == 0)
+            //    return null;
+
+            //Vector3 myPoint = new Vector3(Mathf.Round(point.x), Mathf.Round(point.y));
+
+            //foreach (Collider2D collider in colliders)
+            //{
+            //    if (this.CollisionTag == null || collider.tag == this.CollisionTag)
+            //    {
+            //        // Make sure we're using integer/pixel-perfect math
+            //        Bounds otherBounds = collider.bounds;
+            //        myPoint.z = otherBounds.center.z;
+            //        otherBounds.center = new Vector3(Mathf.Round(otherBounds.center.x), Mathf.Round(otherBounds.center.y), myPoint.z);
+
+            //        if (otherBounds.Contains(myPoint))
+            //            return collider.gameObject;
+            //    }
+            //}
+
+            //return null;
+
             GameObject collidedObject = null;
             if (this.CollisionTag == null)
             {
