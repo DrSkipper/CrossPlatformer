@@ -35,6 +35,9 @@ namespace Assets.Scripts.Extensions
             // Apply offset to our bounds and make sure we're using integer/pixel-perfect math
             bounds.center = new Vector3(Mathf.Round(bounds.center.x) + offsetX, Mathf.Round(bounds.center.y) + offsetY, Mathf.Round(bounds.center.z));
 
+            // Account for bounds intersections marking true when colliders end at same point
+            bounds.size = new Vector3(bounds.size.x - 2, bounds.size.y - 2, bounds.size.z);
+
             foreach (Collider2D collider in colliders)
             {
                 if (collider != self && (objectTag == null || collider.tag == objectTag))
@@ -62,6 +65,10 @@ namespace Assets.Scripts.Extensions
                 Bounds otherBounds = other.bounds;
                 bounds.center = new Vector3(Mathf.Round(bounds.center.x) + offsetX, Mathf.Round(bounds.center.y) + offsetY, Mathf.Round(bounds.center.z));
                 otherBounds.center = new Vector3(Mathf.Round(otherBounds.center.x), Mathf.Round(otherBounds.center.y), Mathf.Round(otherBounds.center.z));
+
+                // Account for bounds intersections marking true when colliders end at same point
+                bounds.size = new Vector3(bounds.size.x - 2, bounds.size.y - 2, bounds.size.z);
+
                 return bounds.Intersects(otherBounds);
             }
 
