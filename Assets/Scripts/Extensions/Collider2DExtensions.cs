@@ -8,6 +8,8 @@ namespace Assets.Scripts.Extensions
 {
     public static class Collider2DExtensions
     {
+        public const int MIN_OVERLAP_AREA_CHECK = 10;
+
         /**
          * Collider2D
          */
@@ -23,10 +25,13 @@ namespace Assets.Scripts.Extensions
         {
             // Overlap an area significantly larger than our bounding box so we can directly compare bounds with collision candidates
             // (Relying purely on OverlapAreaAll for collision seems to be inconsistent at times)
-            //TODO - What is up with OverlapAreaAll and why do I have to check such a large area
+            //NOTE - There appears to be a bug with OverlapAreaAll when the area checked against is too small
+            // http://answers.unity3d.com/questions/772941/physics2doverlapareaallnoalloc-fails-detecting-obj.html
             Bounds bounds = self.bounds;
-            Vector2 corner1 = new Vector2(bounds.min.x - bounds.size.x * 3 + offsetX, bounds.min.y - bounds.size.y * 3 + offsetY);
-            Vector2 corner2 = new Vector2(bounds.max.x + bounds.size.x * 3 + offsetX, bounds.max.y + bounds.size.y * 3 + offsetY);
+            float overlapSizeX = Mathf.Max(bounds.size.x, MIN_OVERLAP_AREA_CHECK);
+            float overlapSizeY = Mathf.Max(bounds.size.y, MIN_OVERLAP_AREA_CHECK);
+            Vector2 corner1 = new Vector2(bounds.min.x - overlapSizeX + offsetX, bounds.min.y - overlapSizeY * 3 + offsetY);
+            Vector2 corner2 = new Vector2(bounds.max.x + overlapSizeX + offsetX, bounds.max.y + overlapSizeY + offsetY);
             Collider2D[] colliders = Physics2D.OverlapAreaAll(corner1, corner2, layerMask);
 
             // If there is only one collider, it is our collider, so there is nothing to collide with
