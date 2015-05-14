@@ -13,15 +13,15 @@ namespace Assets.Scripts
     {
         public int Priority = 50;
 
-        public void ResetProperties()
+        public virtual void ResetProperties()
         {
         }
 
-        public void ApplyPropertyModifiers()
+        public virtual void ApplyPropertyModifiers()
         {
         }
 
-        public void UpdateAbility()
+        public virtual void UpdateAbility()
         {
         }
     }
