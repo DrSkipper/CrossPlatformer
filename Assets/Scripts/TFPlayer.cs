@@ -9,14 +9,14 @@ using Assets.Scripts.Extensions;
 
 namespace Assets.Scripts
 {
-    public enum Facing
-    {
-        Right = 1,
-        Left = -1
-    }
-
     class TFPlayer : VoBehavior
     {
+        private enum Facing
+        {
+            Right = 1,
+            Left = -1
+        }
+
         private const uint MAX_AIM_SNAP_DIRECTIONS = 32;
         private const uint DEFAULT_AIM_SNAP_DIRECTIONS = 8;
 
@@ -503,6 +503,11 @@ namespace Assets.Scripts
         {
 
         }
+
+        //public override bool IsRiding(GameObject solid)
+        //{
+        //    return base.IsRiding(solid) || (_state == PLAYER_STATE_NORMAL && _cling != 0 && base.CollideCheck(solid, base.X + (float)this.Cling, base.Y)) || (this.State == Player.PlayerStates.LedgeGrab && base.CollideCheck(solid, base.X + (float)this.Facing, base.Y));
+        //}
 
         /**
          * Private
