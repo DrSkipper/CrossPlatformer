@@ -13,6 +13,8 @@ namespace Assets.Scripts
     {
         public int Priority = 50;
 
+        public CPPlayer Player { get { if (!_player) _player = this.GetComponent<CPPlayer>(); return _player; } }
+
         public virtual void ResetProperties()
         {
         }
@@ -24,5 +26,10 @@ namespace Assets.Scripts
         public virtual void UpdateAbility()
         {
         }
+
+        /**
+         * Private
+         */
+        private CPPlayer _player;
     }
 }

@@ -569,7 +569,7 @@ namespace Assets.Scripts
         {
             //TODO - is LedgeCheckVertical the right thing to use here?
             // Make sure we are far enough off the ground
-            if (this.boxCollider2D.CollideFirst(0, TFPhysics.DownY * (this.LedgeCheckVertical / 2)))
+            if (this.boxCollider2D.CollideFirst(0, TFPhysics.DownY * (this.LedgeCheckVertical / 2), this.actor.CollisionMask, this.actor.CollisionTag))
                 return false;
 
             //TODO - is the -1.0f necessary?

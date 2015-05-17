@@ -11,7 +11,7 @@ namespace Assets.Scripts
 {
     class CPPlayer : VoBehavior
     {
-        private enum Facing
+        public enum Facing
         {
             Right = 1,
             Left = -1
@@ -39,6 +39,8 @@ namespace Assets.Scripts
         [HideInInspector] public float MULT_RunDecceleration = 1.0f;
         [HideInInspector] public float MULT_AirRunAcceleration = 1.0f;
 
+        [HideInInspector] public bool CanFastFall = true;
+
         public float CalcGravity            { get { return this.Gravity * this.MULT_Gravity; } }
         public float CalcMaxFallSpeed       { get { return this.MaxFallSpeed * this.MULT_MaxFallSpeed; } }
         public float CalcFastFallSpeed      { get { return this.FastFallSpeed * this.MULT_FastFallSpeed; } }
@@ -58,6 +60,23 @@ namespace Assets.Scripts
                     _actor = this.GetComponent<TFActor>() as TFActor;
                 return _actor;
             }
+        }
+
+        public InputState inputState { get { return _inputState; } }
+        public DirectionalVector2 moveAxis { get { return _moveAxis; } }
+        public Facing facing { get { return _facing; } set { _facing = value; } }
+        public Vector2 velocity { get { return _velocity; } }
+        public bool onGround { get { return _onGround; } }
+
+        public void SetVelocityX(float vx) { _velocity.x = vx; }
+        public void SetVelocityY(float vy) { _velocity.y = vy; }
+
+        public void SetAutoMove(float duration, int direction)
+        {
+            _autoMove = direction;
+            if (_autoMoveTimer != null)
+                _autoMoveTimer.complete();
+            _autoMoveTimer = new Timer(duration, false, true, this.finishAutoMove);
         }
 
         public void Awake()
@@ -137,7 +156,7 @@ namespace Assets.Scripts
                 float targetFallSpeed = this.CalcMaxFallSpeed;
 
                 // Check if we need to fast fall
-                if (_inputState.MoveY == TFPhysics.DownY && Math.Sign(_velocity.y) == TFPhysics.DownY)
+                if (this.CanFastFall && _inputState.MoveY == TFPhysics.DownY && Math.Sign(_velocity.y) == TFPhysics.DownY)
                     targetFallSpeed = this.CalcFastFallSpeed;
 
                 _velocity.y = _velocity.y.Approach(TFPhysics.DownY * targetFallSpeed, TFPhysics.DownY * this.CalcGravity * TFPhysics.DeltaFrames);
@@ -192,6 +211,12 @@ namespace Assets.Scripts
             this.MULT_AirRunAcceleration = 1.0f;
 
             _abilities.ForEach(element => element.ResetProperties());
+        }
+
+        private void finishAutoMove()
+        {
+            _autoMove = 0;
+            _autoMoveTimer = null;
         }
     }
 }
