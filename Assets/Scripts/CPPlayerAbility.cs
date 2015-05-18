@@ -23,8 +23,14 @@ namespace Assets.Scripts
         {
         }
 
-        public virtual void UpdateAbility()
+        public virtual string UpdateAbility()
         {
+            return null;
+        }
+
+        public virtual string PostUpdateAbility()
+        {
+            return null;
         }
 
         /**

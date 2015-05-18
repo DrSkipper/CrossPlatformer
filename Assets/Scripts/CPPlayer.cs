@@ -52,6 +52,8 @@ namespace Assets.Scripts
         public float CalcRunDecceleration   { get { return this.RunDecceleration * this.MULT_RunDecceleration; } }
         public float CalcAirRunAcceleration { get { return this.AirRunAcceleration * this.MULT_AirRunAcceleration; } }
 
+        public const string PLAYER_STATE_NORMAL = "normal";
+
         public TFActor actor
         {
             get
@@ -67,6 +69,8 @@ namespace Assets.Scripts
         public Facing facing { get { return _facing; } set { _facing = value; } }
         public Vector2 velocity { get { return _velocity; } }
         public bool onGround { get { return _onGround; } }
+        public GameObject lastPlatform { get { return _lastPlatform; } set { _lastPlatform = value; } }
+        public FSMStateMachine stateMachine { get { return _stateMachine; } }
 
         public void SetVelocityX(float vx) { _velocity.x = vx; }
         public void SetVelocityY(float vy) { _velocity.y = vy; }
@@ -82,6 +86,8 @@ namespace Assets.Scripts
         public void Awake()
         {
             this.ReloadAbilities();
+            _stateMachine.AddState(PLAYER_STATE_NORMAL, this.updateNormal, null, null);
+            _stateMachine.BeginWithInitialState(PLAYER_STATE_NORMAL);
         }
 
         public void Update()
@@ -106,7 +112,7 @@ namespace Assets.Scripts
                 _moveAxis.X = _autoMove;
 
             this.ApplyAbilityPropertyModifiers();
-            this.updateNormal();
+            _stateMachine.Update();
         }
 
         public void ReloadAbilities()
@@ -120,12 +126,31 @@ namespace Assets.Scripts
             _abilities.ForEach(element => element.ApplyPropertyModifiers());
         }
 
-        public void UpdateAbilities()
+        public string UpdateAbilities()
         {
-            _abilities.ForEach(element => element.UpdateAbility());
+            string prevState = _stateMachine.CurrentState;
+            foreach (CPPlayerAbility ability in _abilities)
+            {
+                string state = ability.UpdateAbility();
+                if (state != null && state != prevState)
+                    return state;
+            }
+            return prevState;
         }
 
-        private void updateNormal()
+        public string PostUpdateAbilities()
+        {
+            string prevState = _stateMachine.CurrentState;
+            foreach (CPPlayerAbility ability in _abilities)
+            {
+                string state = ability.PostUpdateAbility();
+                if (state != null && state != prevState)
+                    return state;
+            }
+            return prevState;
+        }
+
+        private string updateNormal()
         {
             // Turning around
             if (_moveAxis.X != Math.Sign(_velocity.x))
@@ -162,13 +187,20 @@ namespace Assets.Scripts
                 _velocity.y = _velocity.y.Approach(TFPhysics.DownY * targetFallSpeed, TFPhysics.DownY * this.CalcGravity * TFPhysics.DeltaFrames);
             }
 
-            this.UpdateAbilities();
+            string state = this.UpdateAbilities();
+            if (state != PLAYER_STATE_NORMAL)
+                return state;
 
             if (_moveAxis.X != 0)
                 _facing = (Facing)_moveAxis.X;
 
             this.actor.MoveH(_velocity.x * TFPhysics.DeltaFrames, this.onCollideH);
             this.actor.MoveV(_velocity.y * TFPhysics.DeltaFrames, this.onCollideV);
+
+            state = this.PostUpdateAbilities();
+            if (state != PLAYER_STATE_NORMAL)
+                return state;
+            return PLAYER_STATE_NORMAL;
         }
 
         /**
@@ -184,6 +216,7 @@ namespace Assets.Scripts
         private int _autoMove;
         private Timer _autoMoveTimer;
         private List<CPPlayerAbility> _abilities;
+        private FSMStateMachine _stateMachine = new FSMStateMachine();
 
         private void onCollideH(GameObject solid)
         {

@@ -34,6 +34,7 @@ namespace Assets.Scripts
         [HideInInspector] public float MULT_WallStickAdd = 1.0f;
 
         [HideInInspector] public bool CanJumpHold = true;
+        [HideInInspector] public int GraceForceDirection = 0;
 
         public float CalcJumpPower { get { return this.JumpPower * this.MULT_JumpPower; } }
         public float CalcJumpHorizontalBoost { get { return this.JumpHorizontalBoost * this.MULT_JumpHorizontalBoost; } }
@@ -45,6 +46,13 @@ namespace Assets.Scripts
         public int CalcWallJumpTime { get { return this.WallJumpTime + this.BONUS_WallJumpTime; } }
         public float CalcWallStickMaxFall { get { return this.WallStickMaxFall * this.MULT_WallStickMaxFall; } }
         public float CalcWallStickAdd { get { return this.WallStickAdd * this.MULT_WallStickAdd; } }
+
+        public void SetJumpGrace(float duration, int forceDirection = 0)
+        {
+            this.GraceForceDirection = forceDirection;
+            _jumpGraceTimer.reset(duration);
+            _jumpGraceTimer.start();
+        }
 
         public void Awake()
         {
@@ -88,6 +96,8 @@ namespace Assets.Scripts
                     _jumpGraceTimer.reset(this.JumpGraceFrames);
                 if (_jumpGraceTimer.paused)
                     _jumpGraceTimer.start();
+
+                this.GraceForceDirection = 0;
             }
             else
             {
@@ -113,7 +123,7 @@ namespace Assets.Scripts
             }
         }
 
-        public override void UpdateAbility()
+        public override string UpdateAbility()
         {
             // Check if it's time to jump
             if (this.Player.inputState.JumpStarted || !_jumpBufferTimer.completed)
@@ -121,11 +131,10 @@ namespace Assets.Scripts
                 if (!_jumpGraceTimer.completed)
                 {
                     // If we're trying to jump from ledge grab, get the direction we moved away from the ledge
-                    //int ledgeDir = _graceLedgeDir;
-                    //if (_moveAxis.X != ledgeDir)
-                    //    ledgeDir = 0;
-                    //jump(true, true, false, ledgeDir);
-                    jump();
+                    int forceDirection = this.GraceForceDirection;
+                    if (this.Player.moveAxis.X != forceDirection)
+                        forceDirection = 0;
+                    jump(forceDirection);
                 }
                 else
                 {
@@ -135,6 +144,29 @@ namespace Assets.Scripts
                         wallJump((int)CPPlayer.Facing.Left);
                 }
             }
+
+            return null;
+        }
+
+        public void jump(int forceDirection = 0)
+        {
+            _jumpBufferTimer.complete();
+            _jumpGraceTimer.complete();
+
+            this.Player.SetVelocityY(TFPhysics.UpY * this.CalcJumpPower);
+
+            if (forceDirection != 0)
+            {
+                this.Player.facing = (CPPlayer.Facing)forceDirection;
+                this.Player.SetVelocityX((float)forceDirection * this.Player.CalcMaxRunSpeed); //TODO - is MaxRunSpeed correct here?
+                this.Player.SetAutoMove(this.CalcJumpGraceFrames, forceDirection); //TODO - Is JumpGraceTime the correct thing to use here?
+            }
+
+            if (this.Player.moveAxis.X != 0)
+                this.Player.SetVelocityX(this.Player.velocity.x + this.CalcJumpHorizontalBoost * this.Player.moveAxis.X);
+
+            this.CanJumpHold = true;
+            this.GraceForceDirection = 0;
         }
 
 
@@ -163,19 +195,6 @@ namespace Assets.Scripts
                 new Vector2(this.Player.actor.RightX - 1.0f + this.WallJumpCheck, this.Player.actor.TopY) :
                 new Vector2(this.Player.actor.LeftX - this.WallJumpCheck, this.Player.actor.TopY);
             return this.Player.actor.CollidePoint(wallJumpCollidePoint);
-        }
-
-        private void jump()
-        {
-            _jumpBufferTimer.complete();
-            _jumpGraceTimer.complete();
-
-            this.Player.SetVelocityY(TFPhysics.UpY * this.CalcJumpPower);
-
-            if (this.Player.moveAxis.X != 0)
-                this.Player.SetVelocityX(this.Player.velocity.x + this.CalcJumpHorizontalBoost * this.Player.moveAxis.X);
-
-            this.CanJumpHold = true;
         }
 
         private void wallJump(int dir)
